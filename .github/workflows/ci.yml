@@ -30,3 +30,22 @@ jobs:
         run: |
           for i in $(seq 1 30); do curl -fs localhost:8000/health && exit 0; sleep 2; done
           docker logs actrag; exit 1
+
+  publish:
+    # release tags only: the image the live demo (Hugging Face Space) runs
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          IMAGE=ghcr.io/finjineersdev/eu-ai-act-rag
+          docker build -t $IMAGE:${GITHUB_REF_NAME} -t $IMAGE:latest .
+          docker push --all-tags $IMAGE

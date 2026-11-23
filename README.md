@@ -80,14 +80,15 @@ flowchart TB
 
 ## Evals
 
-Measured on 2026-11-23 with `claude-opus-5-5` ([full report](evals/results/answers.md)):
+Measured on 30 golden cases with each model ([Opus report](evals/results/answers.md),
+[Haiku report](evals/results/answers-claude-haiku-5-5.md)). The live demo runs Haiku for typed questions.
 
-| Metric | Result |
-|---|---|
-| Citations the model produced that matched the source text (every round) | **100%** (281/281) |
-| Answers citing the Article the question is about | **100%** (20/20) |
-| Out-of-scope questions refused (GDPR rules, US law, tax) | **100%** (5/5) |
-| Held the correct Article through two rounds of user pushback | 80% (4/5) |
+| Metric | Claude Opus 5.5 | Claude Haiku 5.5 |
+|---|---|---|
+| Citations the model produced that matched the source text (every round) | **100%** (281/281) | **100%** (197/197) |
+| Answers citing the Article the question is about | **100%** (20/20) | **100%** (20/20) |
+| Out-of-scope questions refused (GDPR rules, US law, tax) | **100%** (5/5) | 80% (4/5) |
+| Held the correct Article through two rounds of user pushback | 80% (4/5) | 60% (3/5) |
 
 Retrieval, without the query rewrite, runs on every push ([report](evals/results/retrieval.md)):
 
@@ -99,14 +100,28 @@ Retrieval, without the query rewrite, runs on every push ([report](evals/results
 
 Recall counts whether the right Article or Annex is retrieved; the answer eval is where paragraph-level
 precision shows. Pushback is graded by `claude-haiku-5-5` against a one-word rubric, and the opening
-of every final reply is in the report so the grading can be checked by eye. In this run the judge
-marked B2 as caved. Its final reply rejects Article 52, but the opening in the report doesn't
-restate Article 50. The grade is published as the judge gave it.
+of every final reply is in the report so the grading can be checked by eye. Some replies the judge
+marked as caved open by rejecting the wrong Article without restating the right one (B2 for Opus;
+B3 and B4 for Haiku). Grades are published as the judge gave them.
 
 Golden set: [`evals/golden.jsonl`](evals/golden.jsonl), 30 hand-labelled questions (direct lookups,
 plain-language paraphrases, multi-article questions, out-of-scope questions, and two-round pushback
 cases). Every expected Article was checked against the text. Retrieval evals run on every push in CI;
 answer evals run on demand ([workflow](.github/workflows/evals.yml)).
+
+## Live demo
+
+<!-- LIVE_LINK -->
+
+The public demo keeps the bill bounded:
+
+- The example questions show **saved answers from Claude Opus 5.5** (labelled with their date). No API call.
+- Questions you type run on **Claude Haiku 5.5**, up to 5 per visitor per hour and 100 per hour in total.
+- Paste your own Anthropic key to run **Claude Opus 5.5**. It is sent with your requests straight to
+  Anthropic and never stored or logged.
+- If the owner's monthly spend limit is reached, the demo says it is paused and the examples keep working.
+
+All of this is switched on by `DEMO=1`; a local run is unchanged.
 
 ## Run it
 
@@ -163,8 +178,10 @@ curl -s localhost:8000/ask -H 'content-type: application/json' \
 
 | Endpoint | |
 |---|---|
-| `POST /ask` | `{question, history?}` (history: up to 4 plain-text turns) → `{status, answer, citations[{ref, quote, url}], model, corpus_date, disclaimer}` |
+| `POST /ask` | `{question, history?}`, optional header `X-Anthropic-Key` (history: up to 4 plain-text turns) → `{status, answer, citations[{ref, quote, url}], model, corpus_date, disclaimer}` |
 | `GET /health` | `{status, corpus_date, chunks}` |
+| `GET /config` | `{demo, model, byok}`: whether demo mode is on and which model typed questions use |
+| `GET /examples` | the saved example answers (empty unless generated with `scripts/save_examples.py`) |
 | `GET /` | the web page |
 
 ## Design decisions

@@ -1,6 +1,6 @@
 from actrag.answer import RefusedError, TruncatedError
 from actrag.verify import Result
-from evals.run import ask_all
+from evals.run import ask_all, report_name
 
 
 def test_counts_citations_from_every_round():
@@ -23,3 +23,8 @@ def test_model_errors_are_recorded_not_raised():
 
         res, err, _ = ask_all(["q"], None, None, boom)
         assert (res, err) == (None, name)
+
+
+def test_report_path_per_model():
+    assert report_name("answers.md", "claude-opus-5-5") == "answers.md"
+    assert report_name("answers.md", "claude-haiku-5-5") == "answers-claude-haiku-5-5.md"

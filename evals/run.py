@@ -182,7 +182,14 @@ def run_answers(r: Retriever) -> list[str]:
     ]
 
 
+def report_name(base: str, model: str) -> str:
+    """The Opus report keeps its name; other models get their own file."""
+    return base if model == "claude-opus-5-5" else base.replace(".md", f"-{model}.md")
+
+
 def main() -> None:
+    from actrag import answer as answer_mod
+
     p = argparse.ArgumentParser()
     p.add_argument("--retrieval", action="store_true")
     p.add_argument("--answers", action="store_true")
@@ -192,7 +199,7 @@ def main() -> None:
     out.mkdir(exist_ok=True)
     for flag, fn, name in (
         (args.retrieval, run_retrieval, "retrieval.md"),
-        (args.answers, run_answers, "answers.md"),
+        (args.answers, run_answers, report_name("answers.md", answer_mod.MODEL)),
     ):
         if flag:
             text = "\n".join(fn(r)) + "\n"

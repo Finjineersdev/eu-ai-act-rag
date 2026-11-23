@@ -1,4 +1,5 @@
 FROM python:3.12-slim
+LABEL org.opencontainers.image.source=https://github.com/Finjineersdev/eu-ai-act-rag
 COPY --from=ghcr.io/astral-sh/uv:0.12.7 /uv /bin/uv
 
 WORKDIR /app
