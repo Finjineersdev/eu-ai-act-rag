@@ -29,36 +29,20 @@ context, a made-up citation is worse than no answer. This service is built aroun
 
 ```mermaid
 flowchart TB
-    subgraph ingest["1 · Ingest (offline, output committed to the repo)"]
-        direction TB
-        A["Official XHTML<br/>EU Publications Office"]:::data
-        B["Parse by legal structure<br/>Article · paragraph · point · Annex · Recital"]
-        C[("corpus.jsonl<br/>1,016 chunks")]:::data
-        D[("index.npz<br/>local embeddings")]:::data
-        A --> B --> C --> D
+    subgraph ingest["Ingest · offline, committed to the repo"]
+        direction LR
+        A["Official text<br/>EU Publications Office"]:::data --> B["Split by legal structure<br/>Article · point · Annex · Recital"] --> C[("1,016 chunks<br/>+ local embeddings")]:::data
     end
 
-    subgraph ask["2 · Answer a question"]
-        direction TB
-        Q(["Question"])
-        W["Rewrite into the Act's wording<br/><i>Claude Haiku · used for search only</i>"]:::llm
-        R["Hybrid retrieval<br/>BM25 + embeddings, fused with RRF<br/>+ pin Articles named in the question"]
-        L["Claude Opus<br/>each chunk sent as a citable document"]:::llm
-        G{"Guards"}
-        V{"Citation checker<br/>is every quote in its chunk?"}
-        OK(["Answer + verified citations<br/>linked to EUR-Lex"]):::ok
-        Q --> W --> R --> L --> G
-        G -->|"answer with citations"| V
-        V -->|"quotes verified"| OK
-    end
-
-    G -->|"hit max_tokens"| T["502 truncated"]:::stop
-    G -->|"model declined"| X["502 refused"]:::stop
-    G -->|"needs another law"| O["not_in_act"]:::stop
-    V -->|"nothing verified"| N["not_grounded"]:::stop
-
-    C -.-> R
-    D -.-> R
+    Q(["Question"]) --> W["Rewrite into the Act's wording<br/><i>Claude Haiku, search only</i>"]:::llm
+    W --> R["Hybrid search<br/>BM25 + embeddings, RRF<br/>pins any Article you name"]
+    ingest -. loaded at startup .-> R
+    R --> L["Claude Opus<br/>each chunk is a citable document"]:::llm
+    L --> G{{"Guards"}}
+    G -- "cut off · declined · other law" --> S["502 truncated · 502 refused<br/>not_in_act"]:::stop
+    G --> V{{"Is every quote in its chunk?"}}
+    V -- "nothing verified" --> N["not_grounded"]:::stop
+    V -- "verified" --> OK(["Answer + citations<br/>linked to EUR-Lex"]):::ok
 
     classDef data fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
     classDef llm fill:#ede9fe,stroke:#7c3aed,color:#3b0764
