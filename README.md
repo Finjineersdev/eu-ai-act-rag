@@ -39,10 +39,10 @@ flowchart TB
     ingest -. loaded at startup .-> R
     R --> L["Claude Opus<br/>each chunk is a citable document"]:::llm
     L --> G{{"Guards"}}
-    G -- "cut off · declined · other law" --> S["502 truncated · 502 refused<br/>not_in_act"]:::stop
     G --> V{{"Is every quote in its chunk?"}}
-    V -- "nothing verified" --> N["not_grounded"]:::stop
+    G -- "cut off · declined · other law" --> S["502 truncated · 502 refused<br/>not_in_act"]:::stop
     V -- "verified" --> OK(["Answer + citations<br/>linked to EUR-Lex"]):::ok
+    V -- "nothing verified" --> N["not_grounded"]:::stop
 
     classDef data fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
     classDef llm fill:#ede9fe,stroke:#7c3aed,color:#3b0764
