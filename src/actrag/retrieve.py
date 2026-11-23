@@ -62,6 +62,8 @@ class Retriever:
             ]
         picked = pinned[:MAX_PINNED]
         per_unit: dict[str, int] = {}
+        for i in picked:  # pinned chunks count toward their unit's cap
+            per_unit[self.chunks[i].anchor] = per_unit.get(self.chunks[i].anchor, 0) + 1
         recitals = 0
         for i in ranked:
             if len(picked) >= k:

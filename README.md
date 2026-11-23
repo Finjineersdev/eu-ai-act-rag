@@ -28,26 +28,45 @@ context, a made-up citation is worse than no answer. This service is built aroun
 ## How it works
 
 ```mermaid
-flowchart LR
-    subgraph Ingest["Ingest (offline, committed)"]
-        A[Official XHTML<br/>EU Publications Office] --> B[Parse by legal structure<br/>Article · paragraph · point<br/>Annex point · Recital]
-        B --> C[(corpus.jsonl<br/>1,016 chunks)]
-        C --> D[(index.npz<br/>local embeddings)]
+flowchart TB
+    subgraph ingest["1 · Ingest (offline, output committed to the repo)"]
+        direction TB
+        A["Official XHTML<br/>EU Publications Office"]:::data
+        B["Parse by legal structure<br/>Article · paragraph · point · Annex · Recital"]
+        C[("corpus.jsonl<br/>1,016 chunks")]:::data
+        D[("index.npz<br/>local embeddings")]:::data
+        A --> B --> C --> D
     end
-    subgraph Query
-        Q[Question] --> W[Rewrite into the Act's wording<br/>Claude Haiku, search only]
-        W --> R[Hybrid retrieval<br/>BM25 + embeddings, RRF<br/>+ pin named Articles]
-        R --> L[Claude<br/>chunks as citable documents]
-        L --> G{Guards}
-        G -->|stop_reason max_tokens| T[502 truncated]
-        G -->|not_in_act tool| O[out of scope]
-        G --> V[Citation checker<br/>quote ⊂ source chunk?]
-        V -->|nothing verified| N[not grounded]
-        V --> OK[Answer + verified citations<br/>with EUR-Lex links]
+
+    subgraph ask["2 · Answer a question"]
+        direction TB
+        Q(["Question"])
+        W["Rewrite into the Act's wording<br/><i>Claude Haiku · used for search only</i>"]:::llm
+        R["Hybrid retrieval<br/>BM25 + embeddings, fused with RRF<br/>+ pin Articles named in the question"]
+        L["Claude Opus<br/>each chunk sent as a citable document"]:::llm
+        G{"Guards"}
+        V{"Citation checker<br/>is every quote in its chunk?"}
+        OK(["Answer + verified citations<br/>linked to EUR-Lex"]):::ok
+        Q --> W --> R --> L --> G
+        G -->|"answer with citations"| V
+        V -->|"quotes verified"| OK
     end
+
+    G -->|"hit max_tokens"| T["502 truncated"]:::stop
+    G -->|"model declined"| X["502 refused"]:::stop
+    G -->|"needs another law"| O["not_in_act"]:::stop
+    V -->|"nothing verified"| N["not_grounded"]:::stop
+
     C -.-> R
     D -.-> R
+
+    classDef data fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    classDef llm fill:#ede9fe,stroke:#7c3aed,color:#3b0764
+    classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef stop fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
 ```
+
+<sub>Blue: data · Purple: Claude calls · Red: what it returns instead of guessing · Green: the only path to an answer.</sub>
 
 1. **Ingest** parses the official text into chunks that follow the law's own structure, so every
    citation is precise ("Article 5(1)(f)", "Annex III, point 4"). Each chunk's offsets are checked
@@ -81,7 +100,7 @@ Measured on 2026-11-23 with `claude-opus-5-5` ([full report](evals/results/answe
 
 | Metric | Result |
 |---|---|
-| Citations the model produced that matched the source text | **100%** (240/240) |
+| Citations the model produced that matched the source text (every round) | **100%** (304/304) |
 | Answers citing the Article the question is about | **100%** (20/20) |
 | Out-of-scope questions refused (GDPR rules, US law, tax) | **100%** (5/5) |
 | Held the correct Article through two rounds of user pushback | **100%** (5/5) |
@@ -120,7 +139,7 @@ uv run uvicorn actrag.api:app --reload
 Run the tests and evals:
 
 ```bash
-uv run pytest                              # 52 tests, no network or API key
+uv run pytest                              # 55 tests, no network or API key
 uv run python evals/run.py --retrieval     # free
 uv run python evals/run.py --answers       # calls Claude
 ```

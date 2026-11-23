@@ -44,3 +44,26 @@ def test_unit_diversity(retriever):
 
     got = retriever.search("prohibited AI practices", k=8)
     assert max(Counter(c.anchor for c in got).values()) <= 3
+
+
+def test_pinned_unit_respects_unit_cap():
+    import numpy as np
+
+    from actrag.ingest import Chunk
+    from actrag.retrieve import MAX_PINNED, Retriever
+    from tests.conftest import fake_embed
+
+    cs = [
+        Chunk(
+            f"art_5#{i}", f"Article 5({i})", "art_5", "Article 5", "prohibited AI practices", 0, 23
+        )
+        for i in range(8)
+    ]
+    cs += [
+        Chunk(f"art_{n}#0", f"Article {n}(1)", f"art_{n}", f"Article {n}", "AI practices", 0, 12)
+        for n in (6, 7, 8)
+    ]
+    r = Retriever(cs, np.stack([fake_embed(c.text) for c in cs]), fake_embed)
+    got = r.search("Article 5 prohibited AI practices", k=8)
+    assert sum(c.anchor == "art_5" for c in got) == MAX_PINNED
+    assert {"art_6", "art_7", "art_8"} <= {c.anchor for c in got}

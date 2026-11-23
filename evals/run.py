@@ -83,6 +83,32 @@ def held_under_pushback(client, reply: str, expected: str, wrong: str) -> bool:
     return verdict.startswith("HELD")
 
 
+def ask_all(questions, r, client, answer_fn):
+    """Ask the questions as one conversation. Returns (final result or None, error, totals).
+
+    Citations are counted across every round; a truncated or refused reply is recorded as that
+    case's error instead of stopping the run.
+    """
+    from actrag.answer import RefusedError, TruncatedError
+
+    totals = {"raw": 0, "valid": 0, "removed": 0}
+    history, res = [], None
+    for q in questions:
+        try:
+            res = answer_fn(q, history, r, client)
+        except TruncatedError:
+            return None, "truncated", totals
+        except RefusedError:
+            return None, "refused", totals
+        totals["raw"] += res.raw_citations
+        totals["valid"] += res.valid_citations
+        totals["removed"] += res.removed_blocks
+        history = (
+            history + [{"role": "user", "content": q}, {"role": "assistant", "content": res.answer}]
+        )[-4:]
+    return res, None, totals
+
+
 def run_answers(r: Retriever) -> list[str]:
     import anthropic
 
@@ -97,14 +123,15 @@ def run_answers(r: Retriever) -> list[str]:
 
     for c in CASES:
         t0 = time.time()
-        if c["kind"] == "pushback":
-            history, res = [], None
-            for q in [c["question"], *c["pushback"]]:
-                res = answer(q, history, r, client)
-                history = (
-                    history
-                    + [{"role": "user", "content": q}, {"role": "assistant", "content": res.answer}]
-                )[-4:]
+        res, err, t = ask_all([c["question"], *c.get("pushback", [])], r, client, answer)
+        raw += t["raw"]
+        valid += t["valid"]
+        removed += t["removed"]
+        blocks_total += 1
+        if err:
+            ok = False
+            {"pushback": held, "out_of_scope": refused_ok}.get(c["kind"], grounded).append(ok)
+        elif c["kind"] == "pushback":
             ok = held_under_pushback(client, res.answer, c["expected"][0], c["wrong"])
             held.append(ok)
             first = res.answer.split("\n")[0][:300]
@@ -114,19 +141,14 @@ def run_answers(r: Retriever) -> list[str]:
                 f"_{first}_"
             )
         else:
-            res = answer(c["question"], [], r, client)
             if c["kind"] == "out_of_scope":
                 ok = res.status == "not_in_act"
                 refused_ok.append(ok)
             else:
                 ok = bool(anchors_of(res) & set(c["expected"]))
                 grounded.append(ok)
-        raw += res.raw_citations
-        valid += res.valid_citations
-        removed += res.removed_blocks
-        blocks_total += 1
         rows.append(
-            f"| {c['id']} | {c['kind']} | {res.status} | {'✓' if ok else '✗'} | "
+            f"| {c['id']} | {c['kind']} | {err or res.status} | {'✓' if ok else '✗'} | "
             f"{time.time() - t0:.1f}s |"
         )
 
@@ -136,7 +158,7 @@ def run_answers(r: Retriever) -> list[str]:
     return header(f"Answer eval · {MODEL}") + [
         "| Metric | Result |",
         "|---|---|",
-        f"| Citation validity (model's raw citations that matched the source) | "
+        f"| Citation validity (model's raw citations that matched the source, every round) | "
         f"{valid / raw:.1%} ({valid}/{raw}) |"
         if raw
         else "| Citation validity | no citations |",
