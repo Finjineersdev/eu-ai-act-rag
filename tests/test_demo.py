@@ -64,3 +64,14 @@ def test_is_spend_cap():
     assert is_spend_cap(err(429, "You have reached your monthly spend limit"))
     assert not is_spend_cap(err(429, "Rate limit exceeded: 50 requests per minute"))
     assert not is_spend_cap(err(500, "internal"))
+
+
+def test_limiter_memory_bounded():
+    clock = Clock()
+    lim = Limiter(per_ip=5, total=3, window=10, clock=clock)
+    for i in range(1000):  # spoofed IPs after the global cap is hit
+        lim.allow(f"fake{i}")
+    assert len(lim.hits) == 3
+    clock.t = 11
+    lim.allow("new")
+    assert len(lim.hits) <= 4  # expired visitors are dropped

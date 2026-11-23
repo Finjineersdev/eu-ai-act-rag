@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import time
-from collections import defaultdict, deque
+from collections import deque
 
 import anthropic
 
@@ -26,23 +26,31 @@ class Limiter:
         self, per_ip: int = 5, total: int = 100, window: float = 3600, clock=time.monotonic
     ):
         self.per_ip, self.total, self.window, self.clock = per_ip, total, window, clock
-        self.hits: dict[str, deque] = defaultdict(deque)
+        self.hits: dict[str, deque] = {}
         self.all: deque = deque()
 
     def allow(self, ip: str) -> bool:
         now = self.clock()
-        for q in (self.hits[ip], self.all):
-            while q and q[0] <= now - self.window:
-                q.popleft()
-        if len(self.hits[ip]) >= self.per_ip or len(self.all) >= self.total:
+        cutoff = now - self.window
+        while self.all and self.all[0] <= cutoff:
+            self.all.popleft()
+        if (
+            len(self.hits) > self.total
+        ):  # every live visitor holds a global slot, so this bounds memory
+            self.hits = {k: q for k, q in self.hits.items() if q[-1] > cutoff}
+        mine = self.hits.get(ip)  # .get: a denied visitor never creates an entry
+        while mine and mine[0] <= cutoff:
+            mine.popleft()
+        if len(self.all) >= self.total or (mine and len(mine) >= self.per_ip):
             return False
-        self.hits[ip].append(now)
+        self.hits.setdefault(ip, deque()).append(now)
         self.all.append(now)
         return True
 
 
 def client_ip(request) -> str:
-    # spoofable, but a spoofer only gets their own extra quota; the global cap still holds
+    # Left-most hop = the visitor as the Space's proxy saw it. Spoofable, but a spoofer only gets
+    # their own extra quota: the global cap (the cost bound) still holds.
     fwd = request.headers.get("x-forwarded-for", "")
     return fwd.split(",")[0].strip() or request.client.host
 

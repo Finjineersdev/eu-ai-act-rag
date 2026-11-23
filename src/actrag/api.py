@@ -16,6 +16,15 @@ from pydantic import BaseModel, Field, StringConstraints, field_validator, model
 
 from actrag import answer as answer_mod
 from actrag.answer import RefusedError, TruncatedError, answer
+from actrag.demo import (
+    DEMO_MODEL,
+    FULL_MODEL,
+    Limiter,
+    client_ip,
+    demo_on,
+    is_spend_cap,
+    visitor_key,
+)
 from actrag.ingest import DATA
 
 DISCLAIMER = "Research aid based on the text of Regulation (EU) 2024/1689. Not legal advice."
@@ -51,7 +60,7 @@ class Ask(BaseModel):
         return self
 
 
-def create_app(retriever=None, llm=None) -> FastAPI:
+def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if retriever is None:
@@ -66,31 +75,58 @@ def create_app(retriever=None, llm=None) -> FastAPI:
             app.state.llm = anthropic.Anthropic()
         else:
             app.state.llm = None  # /health and the UI still work; /ask explains what's missing
+        app.state.limiter = Limiter()
         yield
 
     app = FastAPI(title="EU AI Act RAG", lifespan=lifespan)
 
     @app.post("/ask")
     def ask(body: Ask, request: Request):
-        if request.app.state.llm is None:
+        key = visitor_key(request)  # a visitor's own key: never logged, stored or echoed
+        if key:
+            llm, model = client_factory(api_key=key), FULL_MODEL
+        elif request.app.state.llm is None:
             return JSONResponse({"error": "no_api_key"}, status_code=503)
+        elif demo_on():
+            if not request.app.state.limiter.allow(client_ip(request)):
+                return JSONResponse({"error": "rate_limited"}, status_code=429)
+            llm, model = request.app.state.llm, DEMO_MODEL
+        else:
+            llm, model = request.app.state.llm, answer_mod.MODEL
         history = [t.model_dump() for t in body.history]
         try:
-            r = answer(body.question, history, request.app.state.retriever, request.app.state.llm)
+            r = answer(body.question, history, request.app.state.retriever, llm, model=model)
         except TruncatedError:
             return JSONResponse({"error": "truncated"}, status_code=502)
         except RefusedError:
             return JSONResponse({"error": "refused"}, status_code=502)
+        except anthropic.AuthenticationError:
+            return JSONResponse(
+                {"error": "bad_key" if key else "upstream"}, status_code=401 if key else 503
+            )
+        except anthropic.APIStatusError as e:
+            paused = not key and is_spend_cap(e)
+            return JSONResponse({"error": "paused" if paused else "upstream"}, status_code=503)
         except anthropic.APIError:
             return JSONResponse({"error": "upstream"}, status_code=503)
         return {
             "status": r.status,
             "answer": r.answer,
             "citations": [asdict(c) for c in r.citations],
-            "model": answer_mod.MODEL,
+            "model": model,
             "corpus_date": CORPUS_DATE,
             "disclaimer": DISCLAIMER,
         }
+
+    @app.get("/config")
+    def config():
+        demo = demo_on()
+        return {"demo": demo, "model": DEMO_MODEL if demo else answer_mod.MODEL, "byok": demo}
+
+    @app.get("/examples")
+    def examples():
+        f = STATIC / "examples.json"
+        return json.loads(f.read_text()) if f.exists() else []
 
     @app.get("/health")
     def health(request: Request):

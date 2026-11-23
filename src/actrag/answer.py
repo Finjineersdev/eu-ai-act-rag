@@ -9,6 +9,7 @@ import anthropic
 from actrag.verify import MARKER, Result, verify
 
 MODEL = os.environ.get("MODEL", "claude-opus-5-5")
+FALLBACK = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
 REWRITE_MODEL = os.environ.get("REWRITE_MODEL", "claude-haiku-5-5")
 REWRITE_SYSTEM = (
     "Rewrite the user's question as one or two sentences in the drafting style of the EU AI Act "
@@ -72,7 +73,10 @@ def search_query(question: str, client) -> str:
     return f"{question}\n{rewrite}" if rewrite else question
 
 
-def answer(question: str, history: list[dict], retriever, client, k: int = 8) -> Result:
+def answer(
+    question: str, history: list[dict], retriever, client, k: int = 8, model: str | None = None
+) -> Result:
+    model = model or MODEL
     docs = retriever.search(search_query(question, client), k=k)
     content = [
         {
@@ -89,15 +93,14 @@ def answer(question: str, history: list[dict], retriever, client, k: int = 8) ->
     messages.append({"role": "user", "content": content})
 
     msg = client.beta.messages.create(
-        model=MODEL,
+        model=model,
         max_tokens=16000,
         system=SYSTEM,
         tools=TOOLS,
         tool_choice={"type": "auto"},
         messages=messages,
         output_config={"effort": "medium"},
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
+        **({} if model.startswith("claude-haiku") else FALLBACK),  # Haiku has no fallback
     )
     if msg.stop_reason == "max_tokens":
         raise TruncatedError

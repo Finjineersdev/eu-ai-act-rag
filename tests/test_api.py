@@ -10,7 +10,7 @@ from actrag.verify import Citation, Result
 def client(monkeypatch, retriever):
     calls = {}
 
-    def fake_answer(question, history, retriever, client):
+    def fake_answer(question, history, retriever, client, model=None):
         calls["history"] = history
         if question == "truncate":
             raise TruncatedError
@@ -105,3 +105,82 @@ def test_long_assistant_history_truncated_not_rejected(client):
 def test_history_must_alternate_starting_with_user(client):
     h = [{"role": "assistant", "content": "a"}]
     assert client.post("/ask", json={"question": "q", "history": h}).status_code == 422
+
+
+# --- demo mode -------------------------------------------------------------------------
+
+import anthropic
+import httpx
+
+from actrag.demo import DEMO_MODEL, FULL_MODEL
+
+KEY = "sk-ant-visitor-secret-123"
+
+
+def status_error(cls, status, message):
+    r = httpx.Response(status, request=httpx.Request("POST", "https://api.anthropic.com"))
+    return cls(message, response=r, body=None)
+
+
+@pytest.fixture
+def demo(monkeypatch, retriever):
+    monkeypatch.setenv("DEMO", "1")
+    seen = {"clients": []}
+
+    def fake_answer(question, history, retriever, client, model=None):
+        seen["model"], seen["client"] = model, client
+        if question == "spend":
+            raise status_error(anthropic.RateLimitError, 429, "monthly spend limit reached")
+        if question == "badkey":
+            raise status_error(anthropic.AuthenticationError, 401, "invalid x-api-key")
+        return Result("answered", "Yes. [1]", [Citation("Article 5(1)", "q", "https://x#art_5")])
+
+    def factory(api_key):
+        seen["clients"].append(api_key)
+        return ("visitor-client", api_key)
+
+    monkeypatch.setattr(api, "answer", fake_answer)
+    app = api.create_app(retriever=retriever, llm="owner-client", client_factory=factory)
+    with TestClient(app) as c:
+        c.seen = seen
+        yield c
+
+
+def test_demo_uses_haiku_without_key(demo):
+    r = demo.post("/ask", json={"question": "q"})
+    assert r.status_code == 200 and r.json()["model"] == DEMO_MODEL
+    assert demo.seen["model"] == DEMO_MODEL and demo.seen["client"] == "owner-client"
+
+
+def test_demo_rate_limited_after_5(demo):
+    codes = [demo.post("/ask", json={"question": "q"}).status_code for _ in range(6)]
+    assert codes == [200] * 5 + [429]
+    assert demo.post("/ask", json={"question": "q"}).json() == {"error": "rate_limited"}
+
+
+def test_byok_uses_opus_and_skips_limit(demo):
+    for _ in range(5):
+        demo.post("/ask", json={"question": "q"})
+    r = demo.post("/ask", json={"question": "q"}, headers={"X-Anthropic-Key": KEY})
+    assert r.status_code == 200 and r.json()["model"] == FULL_MODEL
+    assert demo.seen["clients"] == [KEY] and demo.seen["model"] == FULL_MODEL
+
+
+def test_bad_key_401_never_echoed(demo):
+    r = demo.post("/ask", json={"question": "badkey"}, headers={"X-Anthropic-Key": KEY})
+    assert r.status_code == 401 and r.json() == {"error": "bad_key"}
+    assert KEY not in r.text
+
+
+def test_spend_cap_paused(demo):
+    r = demo.post("/ask", json={"question": "spend"})
+    assert r.status_code == 503 and r.json() == {"error": "paused"}
+
+
+def test_config_endpoint(demo):
+    assert demo.get("/config").json() == {"demo": True, "model": DEMO_MODEL, "byok": True}
+
+
+def test_demo_off_unchanged(client):
+    assert all(client.post("/ask", json={"question": "q"}).status_code == 200 for _ in range(7))
+    assert client.get("/config").json()["demo"] is False
