@@ -6,10 +6,19 @@ from actrag.answer import RefusedError, TruncatedError, answer
 
 
 class FakeClient:
-    def __init__(self, message):
+    def __init__(self, message, rewrite="the use of AI systems to infer emotions in the workplace"):
         self.kw = None
+        self.rewrite_kw = None
         self.beta = NS(messages=NS(create=self._create))
+        self.messages = NS(create=self._rewrite)
         self._message = message
+        self._rewrite_text = rewrite
+
+    def _rewrite(self, **kw):
+        self.rewrite_kw = kw
+        if isinstance(self._rewrite_text, Exception):
+            raise self._rewrite_text
+        return NS(content=[NS(type="text", text=self._rewrite_text)])
 
     def _create(self, **kw):
         self.kw = kw
@@ -72,3 +81,35 @@ def test_cited_answer_round_trip(retriever):
     )
     _, r = run(retriever, message(content=[NS(type="text", text="Yes.", citations=[cite])]))
     assert r.status == "answered" and r.citations
+
+
+class SpyRetriever:
+    def __init__(self, inner):
+        self.inner, self.queries = inner, []
+
+    def search(self, q, k=8):
+        self.queries.append(q)
+        return self.inner.search(q, k)
+
+
+def test_search_uses_question_plus_rewrite(retriever):
+    spy = SpyRetriever(retriever)
+    client = FakeClient(message())
+    answer("Can employers use emotion recognition?", [], spy, client)
+    expected = "Can employers use emotion recognition?\nthe use of AI systems to infer emotions in the workplace"
+    assert spy.queries == [expected]
+    assert client.rewrite_kw["model"] == "claude-haiku-5-5"
+
+
+def test_rewrite_failure_falls_back_to_question(retriever):
+    import anthropic
+
+    spy = SpyRetriever(retriever)
+    client = FakeClient(message(), rewrite=anthropic.APIConnectionError(request=None))
+    answer("What does Article 5 prohibit?", [], spy, client)
+    assert spy.queries == ["What does Article 5 prohibit?"]
+
+
+def test_question_sent_to_model_is_original(retriever):
+    kw, _ = run(retriever, message())
+    assert kw["messages"][-1]["content"][-1]["text"] == "Which AI practices are prohibited?"

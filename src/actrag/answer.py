@@ -4,9 +4,17 @@ from __future__ import annotations
 
 import os
 
+import anthropic
+
 from actrag.verify import Result, verify
 
 MODEL = os.environ.get("MODEL", "claude-opus-5-5")
+REWRITE_MODEL = os.environ.get("REWRITE_MODEL", "claude-haiku-5-5")
+REWRITE_SYSTEM = (
+    "Rewrite the user's question as one or two sentences in the drafting style of the EU AI Act "
+    "(Regulation (EU) 2024/1689), using the terms the Act itself would use. "
+    "Output only those sentences."
+)
 NOT_IN_ACT = "That question is outside the EU AI Act, so I can't answer it from this text."
 
 SYSTEM = """You answer questions about the EU AI Act (Regulation (EU) 2024/1689) using only \
@@ -47,8 +55,25 @@ class RefusedError(Exception):
     """The model (and its fallbacks) declined the request."""
 
 
+def search_query(question: str, client) -> str:
+    """Question plus a rewrite in the Act's own vocabulary ("staff" -> "workplace", "banned" ->
+    "prohibited"). Only steers retrieval; the answer still comes from retrieved, checked text."""
+    try:
+        m = client.messages.create(
+            model=REWRITE_MODEL,
+            max_tokens=1024,
+            system=REWRITE_SYSTEM,
+            output_config={"effort": "low"},
+            messages=[{"role": "user", "content": question}],
+        )
+    except anthropic.APIError:
+        return question
+    rewrite = "".join(b.text for b in m.content if b.type == "text").strip()
+    return f"{question}\n{rewrite}" if rewrite else question
+
+
 def answer(question: str, history: list[dict], retriever, client, k: int = 8) -> Result:
-    docs = retriever.search(question, k=k)
+    docs = retriever.search(search_query(question, client), k=k)
     content = [
         {
             "type": "document",
