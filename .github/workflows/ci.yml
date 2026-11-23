@@ -20,6 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t actrag .
+      - name: Embedder loads offline and search works
+        run: >
+          docker run --rm --network none actrag python -c
+          "from actrag.retrieve import Retriever; r = Retriever.load();
+          assert r.search('biometric identification', k=1)"
       - run: docker run -d -p 8000:8000 --name actrag actrag
       - name: Wait for /health
         run: |
