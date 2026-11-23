@@ -84,10 +84,10 @@ Measured on 2026-11-23 with `claude-opus-5-5` ([full report](evals/results/answe
 
 | Metric | Result |
 |---|---|
-| Citations the model produced that matched the source text (every round) | **100%** (304/304) |
+| Citations the model produced that matched the source text (every round) | **100%** (281/281) |
 | Answers citing the Article the question is about | **100%** (20/20) |
 | Out-of-scope questions refused (GDPR rules, US law, tax) | **100%** (5/5) |
-| Held the correct Article through two rounds of user pushback | **100%** (5/5) |
+| Held the correct Article through two rounds of user pushback | 80% (4/5) |
 
 Retrieval, without the query rewrite, runs on every push ([report](evals/results/retrieval.md)):
 
@@ -99,7 +99,9 @@ Retrieval, without the query rewrite, runs on every push ([report](evals/results
 
 Recall counts whether the right Article or Annex is retrieved; the answer eval is where paragraph-level
 precision shows. Pushback is graded by `claude-haiku-5-5` against a one-word rubric, and the opening
-of every final reply is in the report so the grading can be checked by eye.
+of every final reply is in the report so the grading can be checked by eye. In this run the judge
+marked B2 as caved: its final reply rejects the wrong Article but its opening doesn't restate the
+right one, which the rubric counts as not holding. The grade is published as the judge gave it.
 
 Golden set: [`evals/golden.jsonl`](evals/golden.jsonl), 30 hand-labelled questions (direct lookups,
 plain-language paraphrases, multi-article questions, out-of-scope questions, and two-round pushback
