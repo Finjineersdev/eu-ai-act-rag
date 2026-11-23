@@ -166,8 +166,9 @@ Dockerfile  docker-compose.yml  .github/workflows/ci.yml  pyproject.toml  README
 
 - **Failed citations.** The model's answer comes back as text blocks, each optionally carrying citations.
   If any citation on a block fails the check, it is removed. If *all* of a block's citations fail,
-  the whole block (the claim) is removed. Blocks with no citations are kept only if they are under
-  25 words (connective text such as "In short:"); longer ones are removed. Everything that is returned
+  the whole block (the claim) is removed. Blocks with no citations are kept and shown without a
+  citation number (changed after the first live run: removing long uncited text cut off honest
+  framing such as "the retrieved text doesn't settle this" and left broken sentences). Everything that is returned
   has been checked, so the response has no `verified` flag. If nothing cited survives, the status is `not_grounded`.
 - **Citation validity rate** is measured on the model's raw output, *before* anything is removed
   (checked citations / all citations the model produced), so it measures the model, not the filter.

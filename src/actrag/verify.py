@@ -3,7 +3,7 @@
 Rules (docs/design.md, "Rules settled after review"):
 - a citation is valid only if its quote appears in the cited chunk (whitespace-normalised);
 - a text block whose citations all fail is removed;
-- an uncited block of 25+ words is removed (short connective text is kept);
+- uncited text is kept and shown without a citation number (it is never presented as cited);
 - no valid citation left -> status "not_grounded" with a fixed message.
 """
 
@@ -19,7 +19,6 @@ NOT_GROUNDED = (
     "Try rephrasing, or name the Article you're asking about."
 )
 EURLEX = "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#{anchor}"
-MAX_UNCITED_WORDS = 25
 
 
 @dataclass(frozen=True)
@@ -62,9 +61,6 @@ def verify(content: list, docs: list[Chunk]) -> Result:
         raw += len(cs)
         valid += len(good)
         if cs and not good:
-            removed += 1
-            continue
-        if not cs and len(block.text.split()) >= MAX_UNCITED_WORDS:
             removed += 1
             continue
         marks = []

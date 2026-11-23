@@ -55,13 +55,24 @@ def test_whitespace_drift_passes(docs):
     assert r.valid_citations == 1
 
 
-def test_long_uncited_block_removed(docs):
+def test_uncited_text_kept_without_marker(docs):
+    intro = block(
+        "The retrieved text doesn't settle every part of this question, because the "
+        "paragraph that would decide it was not among the excerpts, but here is what "
+        "the excerpts do say about it:"
+    )
     cited = block("Cited.", cite(0, docs[0].text[:40]))
-    short = block("In short:")
-    long = block(" ".join(["word"] * 30))
-    r = verify([short, cited, long], docs)
-    assert "In short:" in r.answer
-    assert "word word" not in r.answer
+    r = verify([intro, cited], docs)
+    assert r.answer.startswith("The retrieved text")
+    assert r.removed_blocks == 0
+
+
+def test_removed_claim_leaves_no_fragment(docs):
+    lead = block("Banned: ")
+    bad = block("all AI", cite(0, "not in the source"))
+    tail = block(". Also cited.", cite(0, docs[0].text[:30]))
+    r = verify([lead, bad, tail], docs)
+    assert "all AI" not in r.answer and r.removed_blocks == 1
 
 
 def test_nothing_valid_is_not_grounded(docs):

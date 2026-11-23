@@ -1,0 +1,17 @@
+name: Answer evals
+on: workflow_dispatch
+
+jobs:
+  answers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run python evals/run.py --answers
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: answer-eval
+          path: evals/results/answers.md

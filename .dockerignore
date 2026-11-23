@@ -1,0 +1,8 @@
+.venv
+.git
+.superpowers
+docs
+evals
+tests
+.env
+**/__pycache__

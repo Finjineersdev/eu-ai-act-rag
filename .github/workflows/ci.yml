@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run pytest -q
+      - name: Retrieval eval (no API key needed)
+        run: uv run python evals/run.py --retrieval
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t actrag .
+      - run: docker run -d -p 8000:8000 --name actrag actrag
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 30); do curl -fs localhost:8000/health && exit 0; sleep 2; done
+          docker logs actrag; exit 1
