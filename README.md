@@ -185,7 +185,7 @@ Full design: [`docs/design.md`](docs/design.md). The short version:
 
 Text: Regulation (EU) 2024/1689 (Artificial Intelligence Act), as served by the EU Publications
 Office ([CELEX 32024R1689](https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng)). The version used is
-recorded in [`data/corpus_meta.json`](data/corpus_meta.json) (generation date and SHA-256) and shown
+recorded in [`src/actrag/data/corpus_meta.json`](src/actrag/data/corpus_meta.json) (generation date and SHA-256) and shown
 in the app. Amendments after that version are not included. EU legal texts are reused under
 Commission Decision 2011/833/EU. Only the Official Journal text is authentic.
 

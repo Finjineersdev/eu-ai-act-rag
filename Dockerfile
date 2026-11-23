@@ -8,7 +8,6 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY src ./src
-COPY data ./data
 RUN uv sync --frozen --no-dev \
  && uv run --no-sync python -c "from actrag.index import _model; _model()"
 

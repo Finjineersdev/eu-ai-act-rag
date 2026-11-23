@@ -1,6 +1,6 @@
 [project]
 name = "actrag"
-version = "0.1.0"
+version = "1.1.0"
 description = "Ask the EU AI Act questions; every citation is checked against the official text."
 readme = "README.md"
 authors = [{ name = "Haseeb Hanif" }]

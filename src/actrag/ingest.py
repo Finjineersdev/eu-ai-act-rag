@@ -1,6 +1,6 @@
 """Parse the AI Act XHTML (EU Publications Office, Cellar) into structure-aware chunks.
 
-Run `python -m actrag.ingest` to fetch the official text and write data/corpus.jsonl.
+Run `python -m actrag.ingest` to fetch the official text and write src/actrag/data/corpus.jsonl.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 import defusedxml.ElementTree as DET
 
 SOURCE_URL = "http://publications.europa.eu/resource/celex/32024R1689"
-DATA = Path(__file__).resolve().parents[2] / "data"
+DATA = Path(__file__).resolve().parent / "data"
 X = "{http://www.w3.org/1999/xhtml}"
 UNIT_ID = re.compile(r"(art_(\d+)|anx_([IVXL]+)|rct_(\d+))")
 PARA_ID = re.compile(r"(\d{3})\.(\d{3})")
