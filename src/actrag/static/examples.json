@@ -1,0 +1,221 @@
+[
+ {
+  "question": "Which AI practices are prohibited?",
+  "saved_on": "2026-11-24",
+  "status": "answered",
+  "answer": "Article 5 of the AI Act lists the banned AI practices. I only have part of that list: points (a), (d), (e) and (f) of Article 5(1). Those points prohibit the following.\n\n**(a) Manipulative or deceptive techniques.** It is banned to sell, put into service or use an AI system that deploys subliminal techniques beyond a person's consciousness or purposefully manipulative or deceptive techniques, with the objective, or the effect of materially distorting the behaviour of a person or a group of persons by appreciably impairing their ability to make an informed decision [1]. This applies when it leads people to make decisions that cause or are reasonably likely to cause that person, another person or group of persons significant harm [1].\n\n**(d) Predicting crime from profiling alone.** It is banned to use an AI system for making risk assessments of natural persons in order to assess or predict the risk of a natural person committing a criminal offence, based solely on the profiling of a natural person or on assessing their personality traits and characteristics [2]. There is one exception. The ban shall not apply to AI systems used to support the human assessment of the involvement of a person in a criminal activity, which is already based on objective and verifiable facts directly linked to a criminal activity [2].\n\n**(e) Scraping faces to build recognition databases.** It is banned to use AI systems that create or expand facial recognition databases through the untargeted scraping of facial images from the internet or CCTV footage [3].\n\n**(f) Emotion recognition at work and in education.** It is banned to use AI systems to infer emotions of a natural person in the areas of workplace and education institutions [4]. The exception is where the use of the AI system is intended to be put in place or into the market for medical or safety reasons [4].\n\nPoints (b), (c), (g) and (h) of Article 5(1) weren't in what I found, so I can't tell you what they prohibit. If you'd like those covered, try asking about them by name, for example \"Article 5(1)(b)\" or \"Article 5(1)(h)\".",
+  "citations": [
+   {
+    "ref": "Article 5(1)(a)",
+    "quote": "(a) the placing on the market, the putting into service or the use of an AI system that deploys subliminal techniques beyond a person’s consciousness or purposefully manipulative or deceptive techniques, with the objective, or the effect of materially distorting the behaviour of a person or a group of persons by appreciably impairing their ability to make an informed decision, thereby causing them to take a decision that they would not have otherwise taken in a manner that causes or is reasonably likely to cause that person, another person or group of persons significant harm;",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_5"
+   },
+   {
+    "ref": "Article 5(1)(d)",
+    "quote": "(d) the placing on the market, the putting into service for this specific purpose, or the use of an AI system for making risk assessments of natural persons in order to assess or predict the risk of a natural person committing a criminal offence, based solely on the profiling of a natural person or on assessing their personality traits and characteristics; this prohibition shall not apply to AI systems used to support the human assessment of the involvement of a person in a criminal activity, which is already based on objective and verifiable facts directly linked to a criminal activity;",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_5"
+   },
+   {
+    "ref": "Article 5(1)(e)",
+    "quote": "(e) the placing on the market, the putting into service for this specific purpose, or the use of AI systems that create or expand facial recognition databases through the untargeted scraping of facial images from the internet or CCTV footage;",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_5"
+   },
+   {
+    "ref": "Article 5(1)(f)",
+    "quote": "(f) the placing on the market, the putting into service for this specific purpose, or the use of AI systems to infer emotions of a natural person in the areas of workplace and education institutions, except where the use of the AI system is intended to be put in place or into the market for medical or safety reasons;",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_5"
+   }
+  ],
+  "model": "claude-opus-5-5",
+  "corpus_date": "2024-10-17",
+  "disclaimer": "Research aid based on the text of Regulation (EU) 2024/1689. Not legal advice."
+ },
+ {
+  "question": "When is an AI system high-risk?",
+  "saved_on": "2026-11-24",
+  "status": "answered",
+  "answer": "An AI system is high-risk under Article 6 in two ways: (1) it is a safety component of a product, or is itself a product, covered by the EU product laws listed in Annex I and needs third-party conformity assessment; or (2) it falls under a use case listed in Annex III. There is an exception for some Annex III systems.\n\n**1. Product safety route (Article 6(1))**\nIrrespective of whether an AI system is placed on the market or put into service independently of the products referred to in points (a) and (b), that AI system shall be considered to be high-risk where both of the following conditions are fulfilled: (a) the AI system is intended to be used as a safety component of a product, or the AI system is itself a product, covered by the Union harmonisation legislation listed in Annex I; (b) the product whose safety component pursuant to point (a) is the AI system, or the AI system itself as a product, is required to undergo a third-party conformity assessment [1] under that legislation.\n\nBeing high-risk under the AI Act doesn't automatically make the product high-risk under its own product law. The classification of an AI system as high-risk pursuant to this Regulation should not necessarily mean that the product whose safety component is the AI system, or the AI system itself as a product, is considered to be high-risk under the criteria established in the relevant Union harmonisation legislation [2].\n\n**2. Annex III route (Article 6(2))**\nIn addition to the high-risk AI systems referred to in paragraph 1, AI systems referred to in Annex III shall be considered to be high-risk. [3] The excerpts I have don't include the Annex III list itself.\n\n**Exception for Annex III systems (Article 6(3))**\nAn AI system referred to in Annex III shall not be considered to be high-risk where it does not pose a significant risk of harm to the health, safety or fundamental rights of natural persons, including by not materially influencing the outcome of decision making. [4] This applies if at least one of these is true:\n- (a) the AI system is intended to perform a narrow procedural task [5]\n- (b) the AI system is intended to improve the result of a previously completed human activity [5]\n- (c) the AI system is intended to detect decision-making patterns or deviations from prior decision-making patterns and is not meant to replace or influence the previously completed human assessment, without proper human review [5]\n- (d) the AI system is intended to perform a preparatory task to an assessment relevant for the purposes of the use cases listed in Annex III [5]\n\nThe exception never covers profiling: an AI system referred to in Annex III shall always be considered to be high-risk where the AI system performs profiling of natural persons. [6]\n\n**What providers must do to use the exception**\n- A provider that decides its Annex III system is not high-risk shall document its assessment before that system is placed on the market or put into service. [7]\n- It shall be subject to the registration obligation set out in Article 49(2). [8]\n- It must hand over the assessment if national competent authorities ask for it (upon request [9]).\n- If a market surveillance authority has sufficient reason to consider that an AI system classified by the provider as non-high-risk pursuant to Article 6(3) is indeed high-risk [10], it will evaluate the system against the Article 6(3) conditions and the Commission guidelines.",
+  "citations": [
+   {
+    "ref": "Article 6(1)",
+    "quote": "Irrespective of whether an AI system is placed on the market or put into service independently of the products referred to in points (a) and (b), that AI system shall be considered to be high-risk where both of the following conditions are fulfilled: (a) the AI system is intended to be used as a safety component of a product, or the AI system is itself a product, covered by the Union harmonisation legislation listed in Annex I; (b) the product whose safety component pursuant to point (a) is the AI system, or the AI system itself as a product, is required to undergo a third-party conformity assessment, with a view to the placing on the market or the putting into service of that product pursuant to the Union harmonisation legislation listed in Annex I.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_6"
+   },
+   {
+    "ref": "Recital 51",
+    "quote": "(51) The classification of an AI system as high-risk pursuant to this Regulation should not necessarily mean that the product whose safety component is the AI system, or the AI system itself as a product, is considered to be high-risk under the criteria established in the relevant Union harmonisation legislation that applies to the product.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#rct_51"
+   },
+   {
+    "ref": "Article 6(2)",
+    "quote": "In addition to the high-risk AI systems referred to in paragraph 1, AI systems referred to in Annex III shall be considered to be high-risk.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_6"
+   },
+   {
+    "ref": "Article 6(3)",
+    "quote": "By derogation from paragraph 2, an AI system referred to in Annex III shall not be considered to be high-risk where it does not pose a significant risk of harm to the health, safety or fundamental rights of natural persons, including by not materially influencing the outcome of decision making.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_6"
+   },
+   {
+    "ref": "Article 6(3)",
+    "quote": "The first subparagraph shall apply where any of the following conditions is fulfilled: (a) the AI system is intended to perform a narrow procedural task; (b) the AI system is intended to improve the result of a previously completed human activity; (c) the AI system is intended to detect decision-making patterns or deviations from prior decision-making patterns and is not meant to replace or influence the previously completed human assessment, without proper human review; or (d) the AI system is intended to perform a preparatory task to an assessment relevant for the purposes of the use cases listed in Annex III.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_6"
+   },
+   {
+    "ref": "Article 6(3)",
+    "quote": "Notwithstanding the first subparagraph, an AI system referred to in Annex III shall always be considered to be high-risk where the AI system performs profiling of natural persons.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_6"
+   },
+   {
+    "ref": "Article 6(4)",
+    "quote": "A provider who considers that an AI system referred to in Annex III is not high-risk shall document its assessment before that system is placed on the market or put into service.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_6"
+   },
+   {
+    "ref": "Article 6(4)",
+    "quote": "Such provider shall be subject to the registration obligation set out in Article 49(2).",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_6"
+   },
+   {
+    "ref": "Article 6(4)",
+    "quote": "Upon request of national competent authorities, the provider shall provide the documentation of the assessment.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_6"
+   },
+   {
+    "ref": "Article 80(1)",
+    "quote": "Where a market surveillance authority has sufficient reason to consider that an AI system classified by the provider as non-high-risk pursuant to Article 6(3) is indeed high-risk, the market surveillance authority shall carry out an evaluation of the AI system concerned in respect of its classification as a high-risk AI system based on the conditions set out in Article 6(3) and the Commission guidelines.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_80"
+   }
+  ],
+  "model": "claude-opus-5-5",
+  "corpus_date": "2024-10-17",
+  "disclaimer": "Research aid based on the text of Regulation (EU) 2024/1689. Not legal advice."
+ },
+ {
+  "question": "What must deployers of high-risk AI systems do?",
+  "saved_on": "2026-11-24",
+  "status": "answered",
+  "answer": "Under Article 26, deployers of high-risk AI systems mainly have to use the system as its instructions say, assign trained people to oversee it, check their input data, and monitor the system and report problems. Some deployers must also assess the system's impact on fundamental rights before using it (Article 27).\n\n**1. Follow the instructions for use (Art. 26(1))**\nDeployers shall take appropriate technical and organisational measures to ensure they use such systems in accordance with the instructions for use accompanying the systems [1].\n\n**2. Assign human oversight (Art. 26(2))**\nThey shall assign human oversight to natural persons who have the necessary competence, training and authority, as well as the necessary support. [2] Recital 91 says these persons should have in particular an adequate level of AI literacy [3].\n\n**3. Check input data (Art. 26(4))**\nTo the extent the deployer exercises control over the input data, that deployer shall ensure that input data is relevant and sufficiently representative in view of the intended purpose of the high-risk AI system. [4]\n\n**4. Monitor, report and suspend if needed (Art. 26(5))**\n- Deployers shall monitor the operation of the high-risk AI system on the basis of the instructions for use and, where relevant, inform providers in accordance with Article 72. [5]\n- If they think using the system as instructed may create a risk under Article 79(1), they shall, without undue delay, inform the provider or distributor and the relevant market surveillance authority, and shall suspend the use of that system. [6]\n- For a serious incident, they shall also immediately inform first the provider, and then the importer or distributor and the relevant market surveillance authorities of that incident. [7] If the deployer is not able to reach the provider, Article 73 shall apply mutatis mutandis. [8]\n- Exceptions:\n  - The reporting obligation shall not cover sensitive operational data of deployers of AI systems which are law enforcement authorities. [9]\n  - Financial institutions meet the monitoring duty by complying with the rules on internal governance arrangements, processes and mechanisms pursuant to the relevant financial service law. [10]\n\n**5. Fundamental rights impact assessment (Art. 27(1)), for certain deployers only**\nThis applies to deployers that are bodies governed by public law, or are private entities providing public services, and deployers of high-risk AI systems referred to in points 5 (b) and (c) of Annex III [11]. They must complete it before deploying the system. It covers:\n- how the system will be used\n- how often and for how long\n- which people are likely to be affected\n- the specific risks of harm\n- human oversight measures\n- what will be done if risks materialise, including the arrangements for internal governance and complaint mechanisms [12]\n\n**6. Informing affected people (Recital 93)**\nAccording to the recital, when deployers of Annex-listed systems make decisions or assist in making decisions related to natural persons, where applicable, inform the natural persons that they are subject to the use of the high-risk AI system. [13] I don't have the article text that sets this out as an obligation.\n\n**Limits of this answer:** I only have paragraphs 1, 2, 4 and 5 of Article 26. Paragraph 1 refers to paragraphs 3 and 6, so Article 26 contains more obligations that aren't covered here. To see those, you could ask about a specific paragraph, such as Article 26(6), or about a topic like record-keeping.",
+  "citations": [
+   {
+    "ref": "Article 26(1)",
+    "quote": "Deployers of high-risk AI systems shall take appropriate technical and organisational measures to ensure they use such systems in accordance with the instructions for use accompanying the systems, pursuant to paragraphs 3 and 6.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_26"
+   },
+   {
+    "ref": "Article 26(2)",
+    "quote": "Deployers shall assign human oversight to natural persons who have the necessary competence, training and authority, as well as the necessary support.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_26"
+   },
+   {
+    "ref": "Recital 91",
+    "quote": "Furthermore, deployers should ensure that the persons assigned to implement the instructions for use and human oversight as set out in this Regulation have the necessary competence, in particular an adequate level of AI literacy, training and authority to properly fulfil those tasks.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#rct_91"
+   },
+   {
+    "ref": "Article 26(4)",
+    "quote": "Without prejudice to paragraphs 1 and 2, to the extent the deployer exercises control over the input data, that deployer shall ensure that input data is relevant and sufficiently representative in view of the intended purpose of the high-risk AI system.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_26"
+   },
+   {
+    "ref": "Article 26(5)",
+    "quote": "Deployers shall monitor the operation of the high-risk AI system on the basis of the instructions for use and, where relevant, inform providers in accordance with Article 72.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_26"
+   },
+   {
+    "ref": "Article 26(5)",
+    "quote": "Where deployers have reason to consider that the use of the high-risk AI system in accordance with the instructions may result in that AI system presenting a risk within the meaning of Article 79(1), they shall, without undue delay, inform the provider or distributor and the relevant market surveillance authority, and shall suspend the use of that system.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_26"
+   },
+   {
+    "ref": "Article 26(5)",
+    "quote": "Where deployers have identified a serious incident, they shall also immediately inform first the provider, and then the importer or distributor and the relevant market surveillance authorities of that incident.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_26"
+   },
+   {
+    "ref": "Article 26(5)",
+    "quote": "If the deployer is not able to reach the provider, Article 73 shall apply mutatis mutandis.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_26"
+   },
+   {
+    "ref": "Article 26(5)",
+    "quote": "This obligation shall not cover sensitive operational data of deployers of AI systems which are law enforcement authorities.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_26"
+   },
+   {
+    "ref": "Article 26(5)",
+    "quote": "For deployers that are financial institutions subject to requirements regarding their internal governance, arrangements or processes under Union financial services law, the monitoring obligation set out in the first subparagraph shall be deemed to be fulfilled by complying with the rules on internal governance arrangements, processes and mechanisms pursuant to the relevant financial service law.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_26"
+   },
+   {
+    "ref": "Article 27(1)",
+    "quote": "Prior to deploying a high-risk AI system referred to in Article 6(2), with the exception of high-risk AI systems intended to be used in the area listed in point 2 of Annex III, deployers that are bodies governed by public law, or are private entities providing public services, and deployers of high-risk AI systems referred to in points 5 (b) and (c) of Annex III, shall perform an assessment of the impact on fundamental rights that the use of such system may produce.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_27"
+   },
+   {
+    "ref": "Article 27(1)",
+    "quote": "For that purpose, deployers shall perform an assessment consisting of: (a) a description of the deployer’s processes in which the high-risk AI system will be used in line with its intended purpose; (b) a description of the period of time within which, and the frequency with which, each high-risk AI system is intended to be used; (c) the categories of natural persons and groups likely to be affected by its use in the specific context; (d) the specific risks of harm likely to have an impact on the categories of natural persons or groups of persons identified pursuant to point (c) of this paragraph, taking into account the information given by the provider pursuant to Article 13; (e) a description of the implementation of human oversight measures, according to the instructions for use; (f) the measures to be taken in the case of the materialisation of those risks, including the arrangements for internal governance and complaint mechanisms.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_27"
+   },
+   {
+    "ref": "Recital 93",
+    "quote": "Deployers of high-risk AI systems listed in an annex to this Regulation also play a critical role in informing natural persons and should, when they make decisions or assist in making decisions related to natural persons, where applicable, inform the natural persons that they are subject to the use of the high-risk AI system.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#rct_93"
+   }
+  ],
+  "model": "claude-opus-5-5",
+  "corpus_date": "2024-10-17",
+  "disclaimer": "Research aid based on the text of Regulation (EU) 2024/1689. Not legal advice."
+ },
+ {
+  "question": "What are the fines for breaking the rules?",
+  "saved_on": "2026-11-24",
+  "status": "answered",
+  "answer": "The AI Act sets upper limits for fines, and the actual amount depends on who broke the rules, which rule they broke, and the circumstances. Here is what the excerpts I have cover:\n\n**1. Breaches by operators (Article 99(4))**\nNon-compliance with any of the following provisions related to operators or notified bodies, other than those laid down in Articles 5, shall be subject to administrative fines of up to EUR 15 000 000 or, if the offender is an undertaking, up to 3 % of its total worldwide annual turnover for the preceding financial year, whichever is higher [1]. These provisions are:\n- obligations of providers pursuant to Article 16 [1]\n- obligations of authorised representatives pursuant to Article 22 [1]\n- obligations of importers pursuant to Article 23 [1]\n- obligations of distributors pursuant to Article 24 [1]\n- obligations of deployers pursuant to Article 26 [1]\n- requirements and obligations of notified bodies pursuant to Article 31, Article 33(1), (3) and (4) or Article 34 [1]\n- transparency obligations for providers and deployers pursuant to Article 50 [1]\n\n**2. Providers of general-purpose AI models (Article 101)**\nThe Commission may impose on providers of general-purpose AI models fines not exceeding 3 % of their annual total worldwide turnover in the preceding financial year or EUR 15 000 000, whichever is higher. [2] This applies when the provider broke the rules on purpose or through negligence. Examples include breaking the relevant provisions or failing to answer information requests under Article 91.\n\n**3. EU institutions, bodies, offices and agencies (Article 100)**\nThe European Data Protection Supervisor may impose administrative fines [3] on these bodies. If their AI system fails to meet any requirements or obligations under this Regulation, other than those laid down in Article 5 [4], the fine can be up to EUR 750 000 [4].\n\n**How the amount is decided**\nAuthorities must consider all relevant circumstances of the specific situation [5]. These include:\n- the nature, gravity and duration of the infringement and of its consequences [5]\n- the size, the annual turnover and market share of the operator [5]\n- the degree of cooperation with the national competent authorities [5]\n- the intentional or negligent character of the infringement [5]\n\nPenalties shall be effective, proportionate and dissuasive [6]. They shall take into account the interests of SMEs, including start-ups, and their economic viability. [7] Member States set the detailed rules on penalties, which may also include warnings and non-monetary measures [8].\n\n**What these excerpts don't show**\nThe provisions above refer to separate treatment for breaches of Article 5 (prohibited AI practices). However, the excerpts don't include the fine levels for those breaches, the rest of Article 100's ceilings, or the other paragraphs of Article 99. To find those figures, try asking specifically about Article 99(3), 99(5) or 99(6), or Article 100(2).",
+  "citations": [
+   {
+    "ref": "Article 99(4)",
+    "quote": "Non-compliance with any of the following provisions related to operators or notified bodies, other than those laid down in Articles 5, shall be subject to administrative fines of up to EUR 15 000 000 or, if the offender is an undertaking, up to 3 % of its total worldwide annual turnover for the preceding financial year, whichever is higher: (a) obligations of providers pursuant to Article 16; (b) obligations of authorised representatives pursuant to Article 22; (c) obligations of importers pursuant to Article 23; (d) obligations of distributors pursuant to Article 24; (e) obligations of deployers pursuant to Article 26; (f) requirements and obligations of notified bodies pursuant to Article 31, Article 33(1), (3) and (4) or Article 34; (g) transparency obligations for providers and deployers pursuant to Article 50.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_99"
+   },
+   {
+    "ref": "Article 101(1)",
+    "quote": "The Commission may impose on providers of general-purpose AI models fines not exceeding 3 % of their annual total worldwide turnover in the preceding financial year or EUR 15 000 000, whichever is higher., when the Commission finds that the provider intentionally or negligently: (a) infringed the relevant provisions of this Regulation; (b) failed to comply with a request for a document or for information pursuant to Article 91, or supplied incorrect, incomplete or misleading information; (c) failed to comply with a measure requested under Article 93; (d) failed to make available to the Commission access to the general-purpose AI model or general-purpose AI model with systemic risk with a view to conducting an evaluation pursuant to Article 92.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_101"
+   },
+   {
+    "ref": "Article 100(1)",
+    "quote": "The European Data Protection Supervisor may impose administrative fines on Union institutions, bodies, offices and agencies falling within the scope of this Regulation.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_100"
+   },
+   {
+    "ref": "Article 100(3)",
+    "quote": "The non-compliance of the AI system with any requirements or obligations under this Regulation, other than those laid down in Article 5, shall be subject to administrative fines of up to EUR 750 000.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_100"
+   },
+   {
+    "ref": "Article 99(7)",
+    "quote": "When deciding whether to impose an administrative fine and when deciding on the amount of the administrative fine in each individual case, all relevant circumstances of the specific situation shall be taken into account and, as appropriate, regard shall be given to the following: (a) the nature, gravity and duration of the infringement and of its consequences, taking into account the purpose of the AI system, as well as, where appropriate, the number of affected persons and the level of damage suffered by them; (b) whether administrative fines have already been applied by other market surveillance authorities to the same operator for the same infringement; (c) whether administrative fines have already been applied by other authorities to the same operator for infringements of other Union or national law, when such infringements result from the same activity or omission constituting a relevant infringement of this Regulation; (d) the size, the annual turnover and market share of the operator committing the infringement; (e) any other aggravating or mitigating factor applicable to the circumstances of the case, such as financial benefits gained, or losses avoided, directly or indirectly, from the infringement; (f) the degree of cooperation with the national competent authorities, in order to remedy the infringement and mitigate the possible adverse effects of the infringement; (g) the degree of responsibility of the operator taking into account the technical and organisational measures implemented by it; (h) the manner in which the infringement became known to the national competent authorities, in particular whether, and if so to what extent, the operator notified the infringement; (i) the intentional or negligent character of the infringement; (j) any action taken by the operator to mitigate the harm suffered by the affected persons.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_99"
+   },
+   {
+    "ref": "Article 99(1)",
+    "quote": "The penalties provided for shall be effective, proportionate and dissuasive.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_99"
+   },
+   {
+    "ref": "Article 99(1)",
+    "quote": "They shall take into account the interests of SMEs, including start-ups, and their economic viability.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_99"
+   },
+   {
+    "ref": "Article 99(1)",
+    "quote": "In accordance with the terms and conditions laid down in this Regulation, Member States shall lay down the rules on penalties and other enforcement measures, which may also include warnings and non-monetary measures, applicable to infringements of this Regulation by operators, and shall take all measures necessary to ensure that they are properly and effectively implemented, thereby taking into account the guidelines issued by the Commission pursuant to Article 96.",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_99"
+   }
+  ],
+  "model": "claude-opus-5-5",
+  "corpus_date": "2024-10-17",
+  "disclaimer": "Research aid based on the text of Regulation (EU) 2024/1689. Not legal advice."
+ }
+]

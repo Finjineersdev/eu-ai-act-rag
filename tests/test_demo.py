@@ -43,8 +43,14 @@ def req(headers=None, host="9.9.9.9"):
     return NS(headers=headers or {}, client=NS(host=host))
 
 
-def test_client_ip_forwarded():
-    assert client_ip(req({"x-forwarded-for": "1.2.3.4, 10.0.0.1"})) == "1.2.3.4"
+def test_client_ip_uses_hop_added_by_proxy(monkeypatch):
+    spoofed = {
+        "x-forwarded-for": "6.6.6.6, 1.2.3.4"
+    }  # visitor sent 6.6.6.6; proxy appended 1.2.3.4
+    assert client_ip(req(spoofed)) == "1.2.3.4"
+    monkeypatch.setenv("PROXY_HOPS", "2")
+    assert client_ip(req({"x-forwarded-for": "6.6.6.6, 1.2.3.4, 10.0.0.1"})) == "1.2.3.4"
+    assert client_ip(req({"x-forwarded-for": "1.2.3.4"})) == "1.2.3.4"  # fewer hops than expected
     assert client_ip(req()) == "9.9.9.9"
 
 
@@ -75,3 +81,17 @@ def test_limiter_memory_bounded():
     clock.t = 11
     lim.allow("new")
     assert len(lim.hits) <= 4  # expired visitors are dropped
+
+
+def test_limiter_survives_emptied_visitor():
+    clock = Clock()
+    lim = Limiter(per_ip=5, total=2, window=10, clock=clock)
+    lim.allow("a")
+    clock.t = 11
+    lim.allow("b")
+    lim.allow("b")  # global cap full; hits = {a, b}
+    assert not lim.allow("a")  # a's old hit expires, a is denied: no empty entry may remain
+    clock.t = 21.5
+    assert lim.allow("e")
+    assert lim.allow("f")  # cleanup runs over every stored visitor and must not crash
+    assert all(lim.hits.values())

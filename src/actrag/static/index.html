@@ -57,6 +57,10 @@
   .actions { margin-top: 12px; display: none; }
   @media (prefers-reduced-motion: no-preference) { .turn { animation: in .2s ease-out; } }
   @keyframes in { from { opacity: 0; transform: translateY(4px); } }
+  .demo { display: none; margin: 0 0 16px; font-size: .9rem; }
+  .demo details { margin-top: 8px; }
+  .demo input { width: 100%; margin-top: 6px; padding: 8px; font: inherit; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); box-sizing: border-box; }
+  .via { color: var(--muted); font-size: .8rem; margin: 4px 0 0; }
 </style>
 </head>
 <body>
@@ -65,6 +69,15 @@
     <h1>EU AI Act, cited</h1>
     <p>Answers are built from the official text of Regulation (EU) 2024/1689. Every quoted citation is checked against that text before it reaches you.</p>
   </header>
+
+  <section class="demo banner" id="demo" aria-label="About this live demo">
+    <p id="demo-text"></p>
+    <details>
+      <summary>Use your own Anthropic key to run Claude Opus 5.5</summary>
+      <label for="key" class="hint">Sent only with your requests, straight to Anthropic. Never stored or logged.</label>
+      <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+    </details>
+  </section>
 
   <form id="form">
     <label for="q" class="hint">Your question</label>
@@ -94,6 +107,8 @@
 <script>
   const $ = (id) => document.getElementById(id);
   let history = [];  // last 4 turns, plain text only
+  let demo = false, examples = [];
+  const MODELS = { "claude-opus-5-5": "Claude Opus 5.5", "claude-haiku-5-5": "Claude Haiku 5.5" };
 
   function el(tag, props = {}, ...kids) {
     const n = Object.assign(document.createElement(tag), props);
@@ -140,10 +155,16 @@
                     refused: "The model declined this request.",
                     no_api_key: "This server has no ANTHROPIC_API_KEY set, so it can't answer yet. Add one to .env and restart.",
                     invalid: "That question is too long or the conversation got out of sync. Start a new topic and try again.",
-                    upstream: "The model service is unavailable right now. Try again in a moment." }[data.error] || "Something went wrong. Try again.";
+                    upstream: "The model service is unavailable right now. Try again in a moment.",
+                    rate_limited: "You've used this demo's 5 questions for the hour. Try the examples, or add your own Anthropic key above.",
+                    bad_key: "Anthropic didn't accept that key. Check it and try again.",
+                    paused: "The live demo is paused for now (its monthly budget is used up). The examples above still work." }[data.error] || "Something went wrong. Try again.";
       turn.append(el("p", { className: "banner", textContent: msg }));
       return turn;
     }
+    const via = data.saved_on ? `Saved result · ${MODELS[data.model] || data.model} · ${data.saved_on}`
+      : demo ? `Answered live by ${MODELS[data.model] || data.model}` : "";
+    if (via) turn.append(el("p", { className: "via", textContent: via }));
     if (data.status !== "answered") turn.append(el("p", { className: "banner", textContent: data.answer }));
     else turn.append(renderAnswer(data.answer, id));
     if (data.citations?.length) {
@@ -162,12 +183,14 @@
     return turn;
   }
 
-  async function ask(question) {
+  async function ask(question, saved) {
     $("send").disabled = true; $("send").textContent = "Checking the text…";
-    let data;
-    try {
-      const r = await fetch("/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, history }) });
+    let data = saved;
+    if (!data) try {
+      const headers = { "Content-Type": "application/json" };
+      const key = $("key").value.trim();
+      if (key) headers["X-Anthropic-Key"] = key;
+      const r = await fetch("/ask", { method: "POST", headers, body: JSON.stringify({ question, history }) });
       data = await r.json();
       if (r.status === 422) data = { error: "invalid" };
     } catch { data = { error: "network" }; }
@@ -184,8 +207,20 @@
 
   $("form").addEventListener("submit", (e) => { e.preventDefault(); const q = $("q").value.trim(); if (q) ask(q); });
   $("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("form").requestSubmit(); });
-  $("examples").addEventListener("click", (e) => { if (e.target.tagName === "BUTTON") ask(e.target.textContent); });
+  $("examples").addEventListener("click", (e) => {
+    if (e.target.tagName !== "BUTTON") return;
+    const q = e.target.textContent;
+    ask(q, demo && !history.length ? examples.find((x) => x.question === q) : undefined);
+  });
   $("reset").addEventListener("click", () => { history = []; $("thread").replaceChildren(); $("actions").style.display = "none"; });
+  fetch("/config").then((r) => r.json()).then(async (c) => {
+    if (!c.demo) return;
+    demo = true;
+    examples = await fetch("/examples").then((r) => r.json()).catch(() => []);
+    $("demo-text").textContent = "Live demo: the example questions show saved answers from Claude Opus 5.5. "
+      + "Questions you type run on Claude Haiku 5.5, up to 5 per hour.";
+    $("demo").style.display = "block";
+  }).catch(() => {});
   fetch("/health").then((r) => r.json()).then((h) => { $("corpus").textContent = ` · Text version ${h.corpus_date}.`; }).catch(() => {});
 </script>
 </body>

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -27,6 +28,7 @@ from actrag.demo import (
 )
 from actrag.ingest import DATA
 
+log = logging.getLogger("actrag")
 DISCLAIMER = "Research aid based on the text of Regulation (EU) 2024/1689. Not legal advice."
 STATIC = Path(__file__).parent / "static"
 META = json.loads((DATA / "corpus_meta.json").read_text())
@@ -88,7 +90,11 @@ def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> 
         elif request.app.state.llm is None:
             return JSONResponse({"error": "no_api_key"}, status_code=503)
         elif demo_on():
-            if not request.app.state.limiter.allow(client_ip(request)):
+            ip = client_ip(request)
+            if not request.app.state.limiter.allow(ip):
+                log.warning(
+                    "demo rate limit reached for %s", ip
+                )  # owner-only logs; checks PROXY_HOPS
                 return JSONResponse({"error": "rate_limited"}, status_code=429)
             llm, model = request.app.state.llm, DEMO_MODEL
         else:

@@ -37,10 +37,13 @@ class Limiter:
         if (
             len(self.hits) > self.total
         ):  # every live visitor holds a global slot, so this bounds memory
-            self.hits = {k: q for k, q in self.hits.items() if q[-1] > cutoff}
+            self.hits = {k: q for k, q in self.hits.items() if q and q[-1] > cutoff}
         mine = self.hits.get(ip)  # .get: a denied visitor never creates an entry
         while mine and mine[0] <= cutoff:
             mine.popleft()
+        if mine is not None and not mine:
+            del self.hits[ip]
+            mine = None
         if len(self.all) >= self.total or (mine and len(mine) >= self.per_ip):
             return False
         self.hits.setdefault(ip, deque()).append(now)
@@ -49,10 +52,14 @@ class Limiter:
 
 
 def client_ip(request) -> str:
-    # Left-most hop = the visitor as the Space's proxy saw it. Spoofable, but a spoofer only gets
-    # their own extra quota: the global cap (the cost bound) still holds.
-    fwd = request.headers.get("x-forwarded-for", "")
-    return fwd.split(",")[0].strip() or request.client.host
+    """The visitor's address as added by the hosting proxy.
+
+    Proxies append to X-Forwarded-For, so the trustworthy entry is PROXY_HOPS from the right;
+    anything further left was sent by the visitor and can be faked.
+    """
+    hops = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
+    n = int(os.environ.get("PROXY_HOPS", "1"))
+    return hops[-n] if len(hops) >= n else (hops[0] if hops else request.client.host)
 
 
 def visitor_key(request) -> str | None:
