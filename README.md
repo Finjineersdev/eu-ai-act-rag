@@ -181,7 +181,7 @@ curl -s localhost:8000/ask -H 'content-type: application/json' \
 | `POST /ask` | `{question, history?}`, optional header `X-Anthropic-Key` (history: up to 4 plain-text turns) → `{status, answer, citations[{ref, quote, url}], model, corpus_date, disclaimer}` |
 | `GET /health` | `{status, corpus_date, chunks}` |
 | `GET /config` | `{demo, model, byok}`: whether demo mode is on and which model typed questions use |
-| `GET /examples` | the saved example answers (empty unless generated with `scripts/save_examples.py`) |
+| `GET /examples` | the saved example answers (regenerate with `scripts/save_examples.py`) |
 | `GET /` | the web page |
 
 ## Design decisions
