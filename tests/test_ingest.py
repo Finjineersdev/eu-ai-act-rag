@@ -49,3 +49,16 @@ def test_long_paragraph_split_into_points():
 
 def test_short_paragraph_not_split():
     assert not any(r.startswith("Article 6(1)(") for r in refs())
+
+
+def test_annex_points_with_span_text_keep_their_text():
+    xhtml = b"""<html xmlns="http://www.w3.org/1999/xhtml"><body><div id="anx_I">
+    <p class="oj-doc-ti">ANNEX I</p><p class="oj-doc-ti">List of Union harmonisation legislation</p>
+    <table><tbody><tr><td/><td><p class="oj-normal">1.</p></td>
+    <td><span>Directive 2006/42/EC on machinery (<a href="x">OJ L 157</a>);</span></td>
+    </tr></tbody></table></div></body></html>"""
+    from actrag.ingest import parse
+
+    (chunk,) = parse(xhtml)
+    assert chunk.ref == "Annex I, point 1"
+    assert chunk.text == "1. Directive 2006/42/EC on machinery (OJ L 157);"

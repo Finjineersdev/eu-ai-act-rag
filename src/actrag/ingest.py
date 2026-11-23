@@ -65,7 +65,8 @@ def _groups(unit: ET.Element) -> list[tuple[str | None, list[ET.Element]]]:
         for child in el:
             tag = child.tag.removeprefix(X)
             cls = child.get("class") or ""
-            if tag == "p":
+            # text lives in <p>, or in a <span> placed directly in a table cell (Annex I)
+            if tag == "p" or (tag == "span" and el.tag.removeprefix(X) == "td"):
                 if cls in HEADING_CLASSES:
                     continue
                 add(key, child)
