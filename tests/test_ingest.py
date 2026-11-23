@@ -40,3 +40,12 @@ def test_titles():
 
 def test_normalise():
     assert normalise("a  b\n c ") == "a b c"
+
+
+def test_long_paragraph_split_into_points():
+    assert {"Article 5(1)(a)", "Article 5(1)(f)"} <= refs()
+    assert "Article 5(1)" in refs()  # the intro sentence stays its own chunk
+
+
+def test_short_paragraph_not_split():
+    assert not any(r.startswith("Article 6(1)(") for r in refs())

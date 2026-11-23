@@ -13,6 +13,8 @@ from actrag.ingest import Chunk
 RRF_K = 60
 CANDIDATES = 50
 MAX_PINNED = 4
+MAX_RECITALS = 2  # recitals explain; the obligations live in Articles and Annexes
+MAX_PER_UNIT = 3
 PIN = re.compile(r"\b(?:Article\s+(\d+)|Annex\s+([IVXL]+))\b", re.IGNORECASE)
 
 
@@ -58,5 +60,21 @@ class Retriever:
                 for i, c in enumerate(self.chunks)
                 if c.anchor in pinned_anchors and i not in pinned
             ]
-        order = pinned[:MAX_PINNED] + [i for i in ranked if i not in pinned[:MAX_PINNED]]
-        return [self.chunks[i] for i in order[:k]]
+        picked = pinned[:MAX_PINNED]
+        per_unit: dict[str, int] = {}
+        recitals = 0
+        for i in ranked:
+            if len(picked) >= k:
+                break
+            if i in picked:
+                continue
+            c = self.chunks[i]
+            if per_unit.get(c.anchor, 0) >= MAX_PER_UNIT:
+                continue
+            if c.anchor.startswith("rct_"):
+                if recitals >= MAX_RECITALS:
+                    continue
+                recitals += 1
+            per_unit[c.anchor] = per_unit.get(c.anchor, 0) + 1
+            picked.append(i)
+        return [self.chunks[i] for i in picked[:k]]

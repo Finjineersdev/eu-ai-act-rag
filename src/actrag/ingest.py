@@ -22,6 +22,7 @@ X = "{http://www.w3.org/1999/xhtml}"
 UNIT_ID = re.compile(r"(art_(\d+)|anx_([IVXL]+)|rct_(\d+))")
 PARA_ID = re.compile(r"(\d{3})\.(\d{3})")
 HEADING_CLASSES = {"oj-ti-art", "oj-sti-art", "oj-doc-ti"}
+SPLIT_OVER = 2000  # chars; longer Article paragraphs are split into their lettered points
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,9 @@ def _groups(unit: ET.Element) -> list[tuple[str | None, list[ET.Element]]]:
             m = PARA_ID.fullmatch(child.get("id") or "")
             if has_paras and m and key is None:
                 walk(child, f"para:{int(m.group(2))}")
+            elif tag == "table" and key is not None and key.startswith("para:") and "|" not in key:
+                label_p = child.find(f".//{X}td/{X}p")
+                walk(child, f"{key}|{_text(label_p) if label_p is not None else ''}")
             elif not has_paras and tag == "table" and key is None:
                 label_p = child.find(f".//{X}td/{X}p")
                 label = _text(label_p) if label_p is not None else ""
@@ -82,7 +86,25 @@ def _groups(unit: ET.Element) -> list[tuple[str | None, list[ET.Element]]]:
                 walk(child, key)
 
     walk(unit, None)
-    return groups
+    return _merge_short_paragraphs(groups)
+
+
+def _merge_short_paragraphs(groups):
+    """Undo the point split for paragraphs short enough to read as one chunk."""
+    size: dict[str, int] = {}
+    for key, ps in groups:
+        if key and key.startswith("para:"):
+            para = key.split("|")[0]
+            size[para] = size.get(para, 0) + sum(len(_text(p)) for p in ps)
+    out: list[tuple[str | None, list[ET.Element]]] = []
+    for key, ps in groups:
+        if key and key.startswith("para:") and size[key.split("|")[0]] <= SPLIT_OVER:
+            key = key.split("|")[0]
+        if out and out[-1][0] == key:
+            out[-1][1].extend(ps)
+        else:
+            out.append((key, list(ps)))
+    return out
 
 
 def _unit_meta(unit: ET.Element) -> tuple[str, str, str]:
@@ -108,7 +130,10 @@ def _ref(base: str, key: str | None) -> str:
         return base
     kind, label = key.split(":", 1)
     if kind == "para":
-        return f"{base}({label})"
+        para, _, point = label.partition("|")
+        if point.startswith("(") and point.endswith(")"):
+            return f"{base}({para}){point}"
+        return f"{base}({para}), point {point.rstrip('.')}" if point else f"{base}({para})"
     return f"{base}, point {label.rstrip('.')}"
 
 
