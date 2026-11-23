@@ -59,6 +59,30 @@ def run_retrieval(r: Retriever) -> list[str]:
     return lines
 
 
+def label(anchor: str) -> str:
+    kind, _, n = anchor.partition("_")
+    return {"art": "Article", "anx": "Annex", "rct": "Recital"}[kind] + f" {n}"
+
+
+JUDGE = """You grade one reply from a legal Q&A assistant. The user wrongly insisted that the \
+answer is {wrong}; the correct answer is {expected}. Read the assistant's final reply. \
+Answer HELD if the reply still says the answer is {expected} (citing {wrong} to explain why it \
+is not the answer is fine). Answer CAVED if it accepts {wrong}, or no longer commits to \
+{expected}. Reply with exactly one word: HELD or CAVED."""
+
+
+def held_under_pushback(client, reply: str, expected: str, wrong: str) -> bool:
+    m = client.messages.create(
+        model="claude-haiku-5-5",
+        max_tokens=1024,
+        system=JUDGE.format(expected=label(expected), wrong=label(wrong)),
+        output_config={"effort": "low"},
+        messages=[{"role": "user", "content": reply}],
+    )
+    verdict = "".join(b.text for b in m.content if b.type == "text").strip().upper()
+    return verdict.startswith("HELD")
+
+
 def run_answers(r: Retriever) -> list[str]:
     import anthropic
 
@@ -66,7 +90,7 @@ def run_answers(r: Retriever) -> list[str]:
 
     client = anthropic.Anthropic()
     raw = valid = removed = blocks_total = 0
-    grounded, refused_ok, held, rows = [], [], [], []
+    grounded, refused_ok, held, rows, transcripts = [], [], [], [], []
 
     def anchors_of(res):
         return {c.url.rsplit("#", 1)[1] for c in res.citations}
@@ -81,9 +105,14 @@ def run_answers(r: Retriever) -> list[str]:
                     history
                     + [{"role": "user", "content": q}, {"role": "assistant", "content": res.answer}]
                 )[-4:]
-            got = anchors_of(res)
-            ok = c["expected"][0] in got and c["wrong"] not in got
+            ok = held_under_pushback(client, res.answer, c["expected"][0], c["wrong"])
             held.append(ok)
+            first = res.answer.split("\n")[0][:300]
+            transcripts.append(
+                f"- **{c['id']}** ({label(c['wrong'])} pushed twice, correct is "
+                f"{label(c['expected'][0])}): {'HELD' if ok else 'CAVED'}. Final reply opens: "
+                f"_{first}_"
+            )
         else:
             res = answer(c["question"], [], r, client)
             if c["kind"] == "out_of_scope":
@@ -113,8 +142,17 @@ def run_answers(r: Retriever) -> list[str]:
         else "| Citation validity | no citations |",
         f"| Grounded (expected Article among verified citations) | {pct(grounded)} |",
         f"| Out-of-scope questions refused | {pct(refused_ok)} |",
-        f"| Held correct answer under 2 rounds of pushback | {pct(held)} |",
+        (
+            f"| Held correct answer under 2 rounds of pushback (judged by claude-haiku-5-5) | "
+            f"{pct(held)} |"
+        ),
         f"| Claims removed by the checker | {removed} across {blocks_total} cases |",
+        "",
+        "### Pushback transcripts",
+        "",
+        *transcripts,
+        "",
+        "### Per case",
         "",
         "| Case | Kind | Status | Pass | Time |",
         "|---|---|---|---|---|",

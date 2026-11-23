@@ -12,7 +12,7 @@
 
 </div>
 
-<!-- DEMO -->
+<p align="center"><img src="docs/demo.gif" alt="Asking whether employers can use emotion recognition on staff: the answer cites Article 5(1)(f), Recital 44 and Article 3(39), each marked as found in the source" width="820"></p>
 
 ## Why
 
@@ -35,7 +35,8 @@ flowchart LR
         C --> D[(index.npz<br/>local embeddings)]
     end
     subgraph Query
-        Q[Question] --> R[Hybrid retrieval<br/>BM25 + embeddings, RRF<br/>+ pin named Articles]
+        Q[Question] --> W[Rewrite into the Act's wording<br/>Claude Haiku, search only]
+        W --> R[Hybrid retrieval<br/>BM25 + embeddings, RRF<br/>+ pin named Articles]
         R --> L[Claude<br/>chunks as citable documents]
         L --> G{Guards}
         G -->|stop_reason max_tokens| T[502 truncated]
@@ -51,11 +52,15 @@ flowchart LR
 1. **Ingest** parses the official text into chunks that follow the law's own structure, so every
    citation is precise ("Article 5(1)(f)", "Annex III, point 4"). Each chunk's offsets are checked
    against its source: `source[start:end] == chunk`, or the build fails.
-2. **Retrieval** combines keyword search (BM25, good at "Article 50") with local embeddings (good at
+2. **Query rewrite.** People say "employers" and "banned"; the Act says "workplace" and "prohibited".
+   Claude Haiku rewrites the question in the Act's vocabulary, and the rewrite is used only to
+   search. Without it, "Can employers use emotion recognition on their staff?" ranked Article 5(1)(f)
+   90th; with it, 2nd. If the rewrite call fails, search uses the original question.
+3. **Retrieval** combines keyword search (BM25, good at "Article 50") with local embeddings (good at
    paraphrases), merged with Reciprocal Rank Fusion. Recitals are capped so the Articles that
    carry obligations aren't crowded out.
-3. **Generation** sends each chunk to Claude as a separate citable document (Anthropic Citations).
-4. **Verification** checks every returned quote against the chunk it cites. A claim whose quotes
+4. **Generation** sends each chunk to Claude as a separate citable document (Anthropic Citations).
+5. **Verification** checks every returned quote against the chunk it cites. A claim whose quotes
    don't match is removed. If nothing survives, the answer says the text doesn't cover it.
 
 ## What it refuses to do
@@ -71,7 +76,26 @@ flowchart LR
 
 ## Evals
 
-<!-- EVALS -->
+Measured on 2026-11-23 with `claude-opus-5-5` ([full report](evals/results/answers.md)):
+
+| Metric | Result |
+|---|---|
+| Citations the model produced that matched the source text | **100%** (240/240) |
+| Answers citing the Article the question is about | **100%** (20/20) |
+| Out-of-scope questions refused (GDPR rules, US law, tax) | **100%** (5/5) |
+| Held the correct Article through two rounds of user pushback | **100%** (5/5) |
+
+Retrieval, without the query rewrite, runs on every push ([report](evals/results/retrieval.md)):
+
+| Questions | recall@5 | recall@10 |
+|---|---|---|
+| Name an Article ("What does Article 50 require?") | 100% | 100% |
+| Plain language ("Can employers use emotion recognition on staff?") | 69% | 94% |
+| All 25 with an expected answer | 90% | 98% |
+
+Recall counts whether the right Article or Annex is retrieved; the answer eval is where paragraph-level
+precision shows. Pushback is graded by `claude-haiku-5-5` against a one-word rubric, and the opening
+of every final reply is in the report so the grading can be checked by eye.
 
 Golden set: [`evals/golden.jsonl`](evals/golden.jsonl), 30 hand-labelled questions (direct lookups,
 plain-language paraphrases, multi-article questions, out-of-scope questions, and two-round pushback
@@ -95,7 +119,7 @@ uv run uvicorn actrag.api:app --reload
 Run the tests and evals:
 
 ```bash
-uv run pytest                              # 44 tests, no network or API key
+uv run pytest                              # 48 tests, no network or API key
 uv run python evals/run.py --retrieval     # free
 uv run python evals/run.py --answers       # calls Claude
 ```
@@ -110,10 +134,26 @@ uv run python -m actrag.ingest && uv run python -m actrag.index
 
 ```bash
 curl -s localhost:8000/ask -H 'content-type: application/json' \
-  -d '{"question": "Can employers use emotion recognition on their staff?"}'
+  -d '{"question": "Does a customer-service chatbot have to say it is an AI?"}'
 ```
 
-<!-- API_EXAMPLE -->
+```json
+{
+  "status": "answered",
+  "answer": "**Generally yes.** If the chatbot talks directly with customers, the AI Act requires that people be told they're dealing with an AI, unless that's already obvious. …",
+  "citations": [
+    {
+      "ref": "Article 50(1)",
+      "quote": "Providers shall ensure that AI systems intended to interact directly with natural persons are designed and developed in such a way that the natural persons concerned are informed that they are interacting with an AI system, unless this is obvious from the point of view of a natural person who is reasonably well-informed, observant and circumspect, taking into account the circumstances and the context of use.",
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_50"
+    },
+    "…"
+  ],
+  "model": "claude-opus-5-5",
+  "corpus_date": "2024-10-17",
+  "disclaimer": "Research aid based on the text of Regulation (EU) 2024/1689. Not legal advice."
+}
+```
 
 | Endpoint | |
 |---|---|
@@ -132,6 +172,10 @@ Full design: [`docs/design.md`](docs/design.md). The short version:
 - **The Anthropic SDK directly, no framework.** The guards depend on `stop_reason` and the raw
   citation blocks; a wrapper would hide exactly what this project is about.
 - **Chunks follow the law's structure**, not a fixed character count, so citations are exact.
+- **What changed after measuring** is recorded in the design doc and the git history: a larger embedding
+  model was tested and gave no gain; long paragraphs were split into lettered points (plain-language
+  recall 69% → 94%); a too-strict pushback scoring rule was replaced after it marked correct answers
+  as failures.
 
 ## Source and licence
 

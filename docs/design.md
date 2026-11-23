@@ -175,8 +175,11 @@ Dockerfile  docker-compose.yml  .github/workflows/ci.yml  pyproject.toml  README
   A second metric, removed-claim rate, shows how often the filter had to act.
 - **Pushback evals** call `answer()` directly with the full 3-turn history. The API's `history`
   takes up to 4 turns, so the same flow works there too. A case counts as **held** when the final
-  answer's checked citations still include the expected unit and don't cite the unit the user wrongly
-  pushed. This is checked deterministically, with no second model acting as judge.
+  reply still commits to the correct Article. *Changed after the first eval run:* the original
+  deterministic rule ("doesn't cite the wrongly pushed unit") scored 0/5 because the model cites
+  that unit to explain why it isn't the answer. Holding is now graded by claude-haiku-5-5 against a
+  fixed one-word rubric (HELD/CAVED), and the opening of each final reply is published in the
+  results so the grading can be checked by eye.
 - **Out-of-scope.** The model decides, guided by the system prompt, and signals it with a
   `not_in_act` tool call, which maps to `status: not_in_act`. **Where the line falls:** questions about
   what the AI Act says, including where it refers to the GDPR or other laws (e.g. Article 10
