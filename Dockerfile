@@ -12,6 +12,8 @@ COPY data ./data
 RUN uv sync --frozen --no-dev \
  && uv run --no-sync python -c "from actrag.index import _model; _model()"
 
+# the embedding model is baked in; never reach out to Hugging Face at runtime
+ENV HF_HUB_OFFLINE=1
 RUN useradd --create-home app && chown -R app /models
 USER app
 EXPOSE 8000

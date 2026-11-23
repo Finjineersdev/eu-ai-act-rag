@@ -91,3 +91,11 @@ def test_duplicate_citations_deduped(docs):
     q = docs[0].text[:30]
     r = verify([block("a", cite(0, q)), block("b", cite(0, q))], docs)
     assert len(r.citations) == 1
+
+
+def test_model_written_markers_are_stripped(docs):
+    forged = block("Uncited claim [1].")
+    real = block("Real.", cite(0, docs[0].text[:40]))
+    r = verify([forged, real], docs)
+    assert "claim [1]" not in r.answer and "Uncited claim." in r.answer
+    assert r.answer.count("[1]") == 1

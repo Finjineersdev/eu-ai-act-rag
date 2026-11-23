@@ -12,7 +12,7 @@ from typing import Annotated, Literal
 import anthropic
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
 
 from actrag import answer as answer_mod
 from actrag.answer import RefusedError, TruncatedError, answer
@@ -25,9 +25,17 @@ gen = META.get("generated_on") or ""
 CORPUS_DATE = f"{gen[:4]}-{gen[4:6]}-{gen[6:]}" if len(gen) == 8 else META["retrieved_at"]
 
 
+MAX_TURN_CHARS = 8000
+
+
 class Turn(BaseModel):
     role: Literal["user", "assistant"]
-    content: Annotated[str, StringConstraints(max_length=8000)]
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def clip(cls, v: str) -> str:  # long earlier answers are clipped, not rejected
+        return v[:MAX_TURN_CHARS]
 
 
 class Ask(BaseModel):
@@ -35,6 +43,12 @@ class Ask(BaseModel):
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
     ]
     history: list[Turn] = Field(default_factory=list, max_length=4)
+
+    @model_validator(mode="after")
+    def alternating(self):
+        if any(t.role != ("user", "assistant")[i % 2] for i, t in enumerate(self.history)):
+            raise ValueError("history must alternate user/assistant, starting with user")
+        return self
 
 
 def create_app(retriever=None, llm=None) -> FastAPI:

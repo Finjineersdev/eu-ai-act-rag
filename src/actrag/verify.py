@@ -9,6 +9,7 @@ Rules (docs/design.md, "Rules settled after review"):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -18,6 +19,7 @@ NOT_GROUNDED = (
     "The parts of the AI Act I retrieved don't answer this. "
     "Try rephrasing, or name the Article you're asking about."
 )
+MARKER = re.compile(r"\s?\[\d+\]")  # only verify() may add [n] markers
 EURLEX = "https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#{anchor}"
 
 
@@ -71,7 +73,7 @@ def verify(content: list, docs: list[Chunk]) -> Result:
             if key not in cites:
                 cites[key] = Citation(d.ref, quote, EURLEX.format(anchor=d.anchor))
             marks.append(list(cites).index(key) + 1)
-        parts.append(block.text + "".join(f" [{n}]" for n in dict.fromkeys(marks)))
+        parts.append(MARKER.sub("", block.text) + "".join(f" [{n}]" for n in dict.fromkeys(marks)))
     if not cites:
         return Result("not_grounded", NOT_GROUNDED, [], raw, valid, removed)
     return Result("answered", "".join(parts).strip(), list(cites.values()), raw, valid, removed)

@@ -113,3 +113,9 @@ def test_rewrite_failure_falls_back_to_question(retriever):
 def test_question_sent_to_model_is_original(retriever):
     kw, _ = run(retriever, message())
     assert kw["messages"][-1]["content"][-1]["text"] == "Which AI practices are prohibited?"
+
+
+def test_history_markers_stripped(retriever):
+    hist = [{"role": "user", "content": "q1"}, {"role": "assistant", "content": "Yes [1]. No [2]."}]
+    kw, _ = run(retriever, message(), hist)
+    assert kw["messages"][1]["content"] == "Yes. No."

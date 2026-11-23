@@ -6,7 +6,7 @@ import os
 
 import anthropic
 
-from actrag.verify import Result, verify
+from actrag.verify import MARKER, Result, verify
 
 MODEL = os.environ.get("MODEL", "claude-opus-5-5")
 REWRITE_MODEL = os.environ.get("REWRITE_MODEL", "claude-haiku-5-5")
@@ -84,7 +84,8 @@ def answer(question: str, history: list[dict], retriever, client, k: int = 8) ->
         for d in docs
     ]
     content.append({"type": "text", "text": question})
-    messages = [{"role": h["role"], "content": h["content"]} for h in history]
+    # strip old [n] markers so the model can't copy them into new, uncited text
+    messages = [{"role": h["role"], "content": MARKER.sub("", h["content"])} for h in history]
     messages.append({"role": "user", "content": content})
 
     msg = client.beta.messages.create(

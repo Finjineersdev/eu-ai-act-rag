@@ -93,3 +93,15 @@ def test_missing_key_503(monkeypatch, retriever):
     with TestClient(api.create_app(retriever=retriever)) as c:
         r = c.post("/ask", json={"question": "q"})
     assert (r.status_code, r.json()) == (503, {"error": "no_api_key"})
+
+
+def test_long_assistant_history_truncated_not_rejected(client):
+    h = [{"role": "user", "content": "a"}, {"role": "assistant", "content": "x" * 20000}]
+    r = client.post("/ask", json={"question": "q", "history": h})
+    assert r.status_code == 200
+    assert len(client.calls["history"][1]["content"]) == 8000
+
+
+def test_history_must_alternate_starting_with_user(client):
+    h = [{"role": "assistant", "content": "a"}]
+    assert client.post("/ask", json={"question": "q", "history": h}).status_code == 422

@@ -63,7 +63,7 @@
 <main>
   <header>
     <h1>EU AI Act, cited</h1>
-    <p>Answers come only from the official text of Regulation (EU) 2024/1689. Every quote is checked against the source before it reaches you.</p>
+    <p>Answers are built from the official text of Regulation (EU) 2024/1689. Every quoted citation is checked against that text before it reaches you.</p>
   </header>
 
   <form id="form">
@@ -139,6 +139,7 @@
       const msg = { truncated: "The answer was cut off before it finished, so it isn't shown. Try a narrower question.",
                     refused: "The model declined this request.",
                     no_api_key: "This server has no ANTHROPIC_API_KEY set, so it can't answer yet. Add one to .env and restart.",
+                    invalid: "That question is too long or the conversation got out of sync. Start a new topic and try again.",
                     upstream: "The model service is unavailable right now. Try again in a moment." }[data.error] || "Something went wrong. Try again.";
       turn.append(el("p", { className: "banner", textContent: msg }));
       return turn;

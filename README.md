@@ -68,6 +68,7 @@ flowchart LR
 | Situation | Behaviour |
 |---|---|
 | A quote doesn't appear in the cited chunk | The claim is removed before the response leaves the server |
+| The model writes its own `[n]` markers | Stripped; only the checker adds citation numbers. Uncited framing text is shown with no number |
 | Nothing in the answer can be verified | `status: "not_grounded"` with a fixed message, no guessing |
 | The question needs another law (GDPR rules, US law) | `status: "not_in_act"` |
 | The reply hit `max_tokens` | HTTP 502 `truncated`, never a half answer |
@@ -119,7 +120,7 @@ uv run uvicorn actrag.api:app --reload
 Run the tests and evals:
 
 ```bash
-uv run pytest                              # 48 tests, no network or API key
+uv run pytest                              # 52 tests, no network or API key
 uv run python evals/run.py --retrieval     # free
 uv run python evals/run.py --answers       # calls Claude
 ```
@@ -174,7 +175,7 @@ Full design: [`docs/design.md`](docs/design.md). The short version:
 - **Chunks follow the law's structure**, not a fixed character count, so citations are exact.
 - **What changed after measuring** is recorded in the design doc and the git history: a larger embedding
   model was tested and gave no gain; long paragraphs were split into lettered points (plain-language
-  recall 69% → 94%); a too-strict pushback scoring rule was replaced after it marked correct answers
+  recall@10 69% → 94%); a too-strict pushback scoring rule was replaced after it marked correct answers
   as failures.
 
 ## Source and licence
