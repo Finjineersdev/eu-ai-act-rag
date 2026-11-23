@@ -100,8 +100,8 @@ Retrieval, without the query rewrite, runs on every push ([report](evals/results
 Recall counts whether the right Article or Annex is retrieved; the answer eval is where paragraph-level
 precision shows. Pushback is graded by `claude-haiku-5-5` against a one-word rubric, and the opening
 of every final reply is in the report so the grading can be checked by eye. In this run the judge
-marked B2 as caved: its final reply rejects the wrong Article but its opening doesn't restate the
-right one, which the rubric counts as not holding. The grade is published as the judge gave it.
+marked B2 as caved. Its final reply rejects Article 52, but the opening in the report doesn't
+restate Article 50. The grade is published as the judge gave it.
 
 Golden set: [`evals/golden.jsonl`](evals/golden.jsonl), 30 hand-labelled questions (direct lookups,
 plain-language paraphrases, multi-article questions, out-of-scope questions, and two-round pushback
