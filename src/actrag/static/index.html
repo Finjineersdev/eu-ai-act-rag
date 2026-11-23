@@ -156,8 +156,9 @@
                     no_api_key: "This server has no ANTHROPIC_API_KEY set, so it can't answer yet. Add one to .env and restart.",
                     invalid: "That question is too long or the conversation got out of sync. Start a new topic and try again.",
                     upstream: "The model service is unavailable right now. Try again in a moment.",
-                    rate_limited: "You've used this demo's 5 questions for the hour. Try the examples, or add your own Anthropic key above.",
-                    bad_key: "Anthropic didn't accept that key. Check it and try again.",
+                    rate_limited: "You've reached this demo's hourly limit. Try the examples, or add your own Anthropic key above.",
+                    bad_key: "Anthropic didn't accept that key, or its account can't run requests. Check it and try again.",
+                    busy: "The live demo is busy: its hourly limit across all visitors is used up. Try the examples, or add your own key above.",
                     paused: "The live demo is paused for now (its monthly budget is used up). The examples above still work." }[data.error] || "Something went wrong. Try again.";
       turn.append(el("p", { className: "banner", textContent: msg }));
       return turn;

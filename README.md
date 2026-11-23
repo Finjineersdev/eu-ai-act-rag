@@ -117,8 +117,8 @@ The public demo keeps the bill bounded:
 
 - The example questions show **saved answers from Claude Opus 5.5** (labelled with their date). No API call.
 - Questions you type run on **Claude Haiku 5.5**, up to 5 per visitor per hour and 100 per hour in total.
-- Paste your own Anthropic key to run **Claude Opus 5.5**. It is sent with your requests straight to
-  Anthropic and never stored or logged.
+- Paste your own Anthropic key to run **Claude Opus 5.5**. It is used for your requests only, held in
+  memory for that request, and never stored or logged.
 - If the owner's monthly spend limit is reached, the demo says it is paused and the examples keep working.
 
 All of this is switched on by `DEMO=1`; a local run is unchanged.

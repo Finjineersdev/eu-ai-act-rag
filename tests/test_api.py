@@ -119,7 +119,7 @@ KEY = "sk-ant-visitor-secret-123"
 
 def status_error(cls, status, message):
     r = httpx.Response(status, request=httpx.Request("POST", "https://api.anthropic.com"))
-    return cls(message, response=r, body=None)
+    return cls(message, response=r, body={"type": "error", "error": {"message": message}})
 
 
 @pytest.fixture
@@ -130,7 +130,11 @@ def demo(monkeypatch, retriever):
     def fake_answer(question, history, retriever, client, model=None):
         seen["model"], seen["client"] = model, client
         if question == "spend":
-            raise status_error(anthropic.RateLimitError, 429, "monthly spend limit reached")
+            raise status_error(
+                anthropic.BadRequestError, 400, "You have reached your specified API usage limits."
+            )
+        if question == "nobilling":
+            raise status_error(anthropic.PermissionDeniedError, 403, "not allowed")
         if question == "badkey":
             raise status_error(anthropic.AuthenticationError, 401, "invalid x-api-key")
         return Result("answered", "Yes. [1]", [Citation("Article 5(1)", "q", "https://x#art_5")])
@@ -184,3 +188,34 @@ def test_config_endpoint(demo):
 def test_demo_off_unchanged(client):
     assert all(client.post("/ask", json={"question": "q"}).status_code == 200 for _ in range(7))
     assert client.get("/config").json()["demo"] is False
+
+
+def test_byok_served_when_global_cap_full(demo, monkeypatch):
+    from actrag.demo import Limiter
+
+    demo.app.state.limiter = Limiter(per_ip=5, total=0)
+    assert demo.post("/ask", json={"question": "q"}).json() == {"error": "busy"}
+    r = demo.post("/ask", json={"question": "q"}, headers={"X-Anthropic-Key": KEY})
+    assert r.status_code == 200
+
+
+def test_byok_has_its_own_looser_limit(demo):
+    codes = [
+        demo.post("/ask", json={"question": "q"}, headers={"X-Anthropic-Key": KEY}).status_code
+        for _ in range(31)
+    ]
+    assert codes == [200] * 30 + [429]
+
+
+def test_visitor_key_without_permission_is_bad_key(demo):
+    r = demo.post("/ask", json={"question": "nobilling"}, headers={"X-Anthropic-Key": KEY})
+    assert r.status_code == 401 and r.json() == {"error": "bad_key"}
+
+
+def test_key_never_logged(demo, caplog):
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+    for q in ("q", "badkey", "spend"):
+        demo.post("/ask", json={"question": q}, headers={"X-Anthropic-Key": KEY})
+    assert KEY not in caplog.text

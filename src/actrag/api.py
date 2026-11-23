@@ -74,10 +74,12 @@ def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> 
         if llm is not None:
             app.state.llm = llm
         elif os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"):
-            app.state.llm = anthropic.Anthropic()
+            # in the demo, a capped key should fail fast instead of retrying
+            app.state.llm = anthropic.Anthropic(max_retries=1 if demo_on() else 2)
         else:
             app.state.llm = None  # /health and the UI still work; /ask explains what's missing
         app.state.limiter = Limiter()
+        app.state.key_limiter = Limiter(per_ip=30, total=10**6)
         yield
 
     app = FastAPI(title="EU AI Act RAG", lifespan=lifespan)
@@ -86,16 +88,18 @@ def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> 
     def ask(body: Ask, request: Request):
         key = visitor_key(request)  # a visitor's own key: never logged, stored or echoed
         if key:
+            # their key, their cost; a looser limit still stops junk keys from burning our CPU
+            if request.app.state.key_limiter.check(client_ip(request)):
+                return JSONResponse({"error": "rate_limited"}, status_code=429)
             llm, model = client_factory(api_key=key), FULL_MODEL
         elif request.app.state.llm is None:
             return JSONResponse({"error": "no_api_key"}, status_code=503)
         elif demo_on():
             ip = client_ip(request)
-            if not request.app.state.limiter.allow(ip):
-                log.warning(
-                    "demo rate limit reached for %s", ip
-                )  # owner-only logs; checks PROXY_HOPS
-                return JSONResponse({"error": "rate_limited"}, status_code=429)
+            denied = request.app.state.limiter.check(ip)
+            if denied:
+                log.warning("demo %s for %s", denied, ip)  # owner-only logs; checks PROXY_HOPS
+                return JSONResponse({"error": denied}, status_code=429)
             llm, model = request.app.state.llm, DEMO_MODEL
         else:
             llm, model = request.app.state.llm, answer_mod.MODEL
@@ -106,11 +110,13 @@ def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> 
             return JSONResponse({"error": "truncated"}, status_code=502)
         except RefusedError:
             return JSONResponse({"error": "refused"}, status_code=502)
-        except anthropic.AuthenticationError:
-            return JSONResponse(
-                {"error": "bad_key" if key else "upstream"}, status_code=401 if key else 503
-            )
         except anthropic.APIStatusError as e:
+            if key and e.status_code in (
+                401,
+                402,
+                403,
+            ):  # their key, or its account, can't run this
+                return JSONResponse({"error": "bad_key"}, status_code=401)
             paused = not key and is_spend_cap(e)
             return JSONResponse({"error": "paused" if paused else "upstream"}, status_code=503)
         except anthropic.APIError:

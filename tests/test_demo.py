@@ -54,21 +54,43 @@ def test_client_ip_uses_hop_added_by_proxy(monkeypatch):
     assert client_ip(req()) == "9.9.9.9"
 
 
+def test_client_ip_bad_proxy_hops(monkeypatch):
+    for bad in ("0", "-3", "abc"):
+        monkeypatch.setenv("PROXY_HOPS", bad)
+        assert client_ip(req({"x-forwarded-for": "6.6.6.6, 1.2.3.4"})) == "1.2.3.4"
+        assert client_ip(req()) == "9.9.9.9"
+
+
 def test_visitor_key_blank_is_none():
     assert visitor_key(req({"x-anthropic-key": "  "})) is None
     assert visitor_key(req()) is None
     assert visitor_key(req({"x-anthropic-key": " sk-ant-x "})) == "sk-ant-x"
 
 
-def err(status, message):
+def err(status, message, code=None):
     r = httpx.Response(status, request=httpx.Request("POST", "https://api.anthropic.com"))
-    return anthropic.APIStatusError(message, response=r, body=None)
+    body = {"type": "error", "error": {"type": "x", "message": message}}
+    if code:
+        body["error"]["details"] = {"error_code": code}
+    return anthropic.APIStatusError(message, response=r, body=body)
 
 
 def test_is_spend_cap():
+    # owner's own Console limit (documented as a 400)
+    assert is_spend_cap(
+        err(
+            400,
+            "You have reached your specified API usage limits. You will regain access on 2026-12-01",
+        )
+    )
+    assert is_spend_cap(err(400, "You have reached your specified workspace API usage limits."))
+    # tier spend cap: a 429 with a structured error code
+    assert is_spend_cap(
+        err(429, "You have reached your API usage limits.", "enforced_spend_limit_reached")
+    )
     assert is_spend_cap(err(402, "billing problem"))
-    assert is_spend_cap(err(429, "You have reached your monthly spend limit"))
     assert not is_spend_cap(err(429, "Rate limit exceeded: 50 requests per minute"))
+    assert not is_spend_cap(err(400, "messages: field required"))
     assert not is_spend_cap(err(500, "internal"))
 
 
@@ -95,3 +117,27 @@ def test_limiter_survives_emptied_visitor():
     assert lim.allow("e")
     assert lim.allow("f")  # cleanup runs over every stored visitor and must not crash
     assert all(lim.hits.values())
+
+
+def test_check_names_the_reason():
+    lim = Limiter(per_ip=1, total=2, clock=Clock())
+    assert lim.check("a") is None
+    assert lim.check("a") == "rate_limited"
+    assert lim.check("b") is None
+    assert lim.check("c") == "busy"
+
+
+def test_limiter_thread_safe():
+    import threading
+
+    lim = Limiter(per_ip=1000, total=500, clock=Clock())
+    ok = []
+    threads = [
+        threading.Thread(target=lambda i=i: ok.append(lim.allow(f"ip{i % 50}")))
+        for i in range(2000)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sum(ok) == 500
