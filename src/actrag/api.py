@@ -111,11 +111,8 @@ def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> 
         except RefusedError:
             return JSONResponse({"error": "refused"}, status_code=502)
         except anthropic.APIStatusError as e:
-            if key and e.status_code in (
-                401,
-                402,
-                403,
-            ):  # their key, or its account, can't run this
+            # their key is wrong, can't run this, or is out of credit: retrying won't help
+            if key and (e.status_code in (401, 402, 403) or is_spend_cap(e)):
                 return JSONResponse({"error": "bad_key"}, status_code=401)
             paused = not key and is_spend_cap(e)
             return JSONResponse({"error": "paused" if paused else "upstream"}, status_code=503)

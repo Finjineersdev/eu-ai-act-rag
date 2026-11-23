@@ -140,7 +140,7 @@ uv run uvicorn actrag.api:app --reload
 Run the tests and evals:
 
 ```bash
-uv run pytest                              # 57 tests, no network or API key
+uv run pytest                              # 81 tests, no network or API key
 uv run python evals/run.py --retrieval     # free
 uv run python evals/run.py --answers       # calls Claude
 ```

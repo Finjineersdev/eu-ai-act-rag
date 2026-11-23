@@ -151,7 +151,9 @@
     const id = Math.random().toString(36).slice(2, 8);
     const turn = el("article", { className: "turn" }, el("p", { className: "q", textContent: question }));
     if (data.error) {
-      const msg = { truncated: "The answer was cut off before it finished, so it isn't shown. Try a narrower question.",
+      if (data.error === "rate_limited" && $("key").value.trim()) data.error = "rate_limited_key";
+      const msg = { rate_limited_key: "You've reached this demo's hourly limit for requests with your own key. Try again later.",
+                    truncated: "The answer was cut off before it finished, so it isn't shown. Try a narrower question.",
                     refused: "The model declined this request.",
                     no_api_key: "This server has no ANTHROPIC_API_KEY set, so it can't answer yet. Add one to .env and restart.",
                     invalid: "That question is too long or the conversation got out of sync. Start a new topic and try again.",

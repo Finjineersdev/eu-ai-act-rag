@@ -219,3 +219,8 @@ def test_key_never_logged(demo, caplog):
     for q in ("q", "badkey", "spend"):
         demo.post("/ask", json={"question": q}, headers={"X-Anthropic-Key": KEY})
     assert KEY not in caplog.text
+
+
+def test_visitor_key_out_of_credit_is_bad_key(demo):
+    r = demo.post("/ask", json={"question": "spend"}, headers={"X-Anthropic-Key": KEY})
+    assert r.status_code == 401 and r.json() == {"error": "bad_key"}
