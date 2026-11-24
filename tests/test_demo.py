@@ -141,3 +141,15 @@ def test_limiter_thread_safe():
     for t in threads:
         t.join()
     assert sum(ok) == 500
+
+
+def test_client_ip_from_trusted_header(monkeypatch):
+    monkeypatch.setenv("CLIENT_IP_HEADER", "CF-Connecting-IP")
+    h = {
+        "x-forwarded-for": "6.6.6.6, 1.2.3.4, 172.71.141.57, 10.0.0.1",
+        "cf-connecting-ip": " 1.2.3.4 ",
+    }
+    assert client_ip(req(h)) == "1.2.3.4"
+    assert (
+        client_ip(req({"x-forwarded-for": "6.6.6.6, 1.2.3.4"})) == "1.2.3.4"
+    )  # header missing → XFF rule

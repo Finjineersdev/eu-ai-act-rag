@@ -62,8 +62,13 @@ def client_ip(request) -> str:
     """The visitor's address as added by the hosting proxy.
 
     Proxies append to X-Forwarded-For, so the trustworthy entry is PROXY_HOPS from the right;
-    anything further left was sent by the visitor and can be faked.
+    anything further left was sent by the visitor and can be faked. Behind a proxy that sets its own
+    client-address header and overwrites any copy the visitor sent (Cloudflare's CF-Connecting-IP, on
+    Render), name it in CLIENT_IP_HEADER instead.
     """
+    trusted = os.environ.get("CLIENT_IP_HEADER", "").strip().lower()
+    if trusted and request.headers.get(trusted, "").strip():
+        return request.headers[trusted].strip()
     hops = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
     try:
         n = max(1, int(os.environ.get("PROXY_HOPS", "1")))

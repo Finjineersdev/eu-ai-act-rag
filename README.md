@@ -121,7 +121,11 @@ The public demo keeps the bill bounded:
   memory for that request, and never stored or logged.
 - If the owner's monthly spend limit is reached, the demo says it is paused and the examples keep working.
 
-All of this is switched on by `DEMO=1`; a local run is unchanged.
+All of this is switched on by `DEMO=1`; a local run is unchanged. The per-visitor limit needs the
+visitor's real address from behind the host's proxy: set `CLIENT_IP_HEADER` to a header the proxy
+sets and overwrites (on Render: `CF-Connecting-IP`), or `PROXY_HOPS` to how many proxies append to
+`X-Forwarded-For` (default 1). When a call to Anthropic fails, the log shows the error type and status,
+never a key.
 
 ## Run it
 
@@ -140,7 +144,7 @@ uv run uvicorn actrag.api:app --reload
 Run the tests and evals:
 
 ```bash
-uv run pytest                              # 82 tests, no network or API key
+uv run pytest                              # 83 tests, no network or API key
 uv run python evals/run.py --retrieval     # free
 uv run python evals/run.py --answers       # calls Claude
 ```
