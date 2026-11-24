@@ -96,7 +96,10 @@ def test_search_uses_question_plus_rewrite(retriever):
     spy = SpyRetriever(retriever)
     client = FakeClient(message())
     answer("Can employers use emotion recognition?", [], spy, client)
-    expected = "Can employers use emotion recognition?\nthe use of AI systems to infer emotions in the workplace"
+    expected = (
+        "Can employers use emotion recognition?\n"
+        "the use of AI systems to infer emotions in the workplace"
+    )
     assert spy.queries == [expected]
     assert client.rewrite_kw["model"] == "claude-haiku-5-5"
 
@@ -119,3 +122,10 @@ def test_history_markers_stripped(retriever):
     hist = [{"role": "user", "content": "q1"}, {"role": "assistant", "content": "Yes [1]. No [2]."}]
     kw, _ = run(retriever, message(), hist)
     assert kw["messages"][1]["content"] == "Yes. No."
+
+
+def test_haiku_sent_without_fallback(retriever):
+    client = FakeClient(message())
+    answer("Which AI practices are prohibited?", [], retriever, client, model="claude-haiku-5-5")
+    assert client.kw["model"] == "claude-haiku-5-5"
+    assert "fallbacks" not in client.kw and "betas" not in client.kw  # Haiku 5.5 has none

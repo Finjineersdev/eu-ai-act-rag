@@ -1,0 +1,12 @@
+# Pinned SHAs and digests don't update themselves; this opens a PR each month when they should.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: monthly}
+  - package-ecosystem: docker
+    directory: /
+    schedule: {interval: monthly}
+  - package-ecosystem: uv
+    directory: /
+    schedule: {interval: monthly}

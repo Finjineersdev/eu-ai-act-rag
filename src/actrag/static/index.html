@@ -74,7 +74,7 @@
     <p id="demo-text"></p>
     <details>
       <summary>Use your own Anthropic key to run Claude Opus 5.5</summary>
-      <label for="key" class="hint">Sent only with your requests, straight to Anthropic. Never stored or logged.</label>
+      <label for="key" class="hint">Used for your requests only, never stored or logged.</label>
       <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
     </details>
   </section>
@@ -221,7 +221,9 @@
     demo = true;
     examples = await fetch("/examples").then((r) => r.json()).catch(() => []);
     $("demo-text").textContent = "Live demo: the example questions show saved answers from Claude Opus 5.5. "
-      + "Questions you type run on Claude Haiku 5.5, up to 5 per hour.";
+      + `Questions you type run on Claude Haiku 5.5, up to ${c.per_hour} per hour. `
+      + "What you type is sent to Anthropic to answer it. This site stores nothing, and logs your "
+      + "IP address only if you reach the hourly limit.";
     $("demo").style.display = "block";
   }).catch(() => {});
   fetch("/health").then((r) => r.json()).then((h) => { $("corpus").textContent = ` · Text version ${h.corpus_date}.`; }).catch(() => {});

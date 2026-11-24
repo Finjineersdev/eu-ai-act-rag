@@ -99,3 +99,9 @@ def test_model_written_markers_are_stripped(docs):
     r = verify([forged, real], docs)
     assert "claim [1]" not in r.answer and "Uncited claim." in r.answer
     assert r.answer.count("[1]") == 1
+
+
+def test_quote_at_wrong_position_rejected(docs):
+    quote = docs[0].text[100:160]  # real text, but the API said it was at 0..60
+    r = verify([block("Claim.", cite(0, quote))], docs)
+    assert r.status == "not_grounded"

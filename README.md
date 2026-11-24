@@ -34,10 +34,13 @@ flowchart TB
         A["Official text<br/>EU Publications Office"]:::data --> B["Split by legal structure<br/>Article · point · Annex · Recital"] --> C[("1,016 chunks<br/>+ local embeddings")]:::data
     end
 
-    Q(["Question"]) --> W["Rewrite into the Act's wording<br/><i>Claude Haiku, search only</i>"]:::llm
+    Q(["Question"]) --> D{{"Live demo only:<br/>example? · hourly limit"}}
+    D -- "example button" --> SV(["Saved Opus answer<br/>no API call"]):::ok
+    D -- "429 rate_limited · busy" --> RL["Try later, or<br/>bring your own key"]:::stop
+    D --> W["Rewrite into the Act's wording<br/><i>Claude Haiku, search only</i>"]:::llm
     W --> R["Hybrid search<br/>BM25 + embeddings, RRF<br/>pins any Article you name"]
     ingest -. loaded at startup .-> R
-    R --> L["Claude Opus<br/>each chunk is a citable document"]:::llm
+    R --> L["Claude Opus 5.5 · Haiku 5.5 in the demo<br/>each chunk is a citable document"]:::llm
     L --> G{{"Guards"}}
     G --> V{{"Is every quote in its chunk?"}}
     G -- "cut off · declined · other law" --> S["502 truncated · 502 refused<br/>not_in_act"]:::stop
@@ -53,8 +56,9 @@ flowchart TB
 <sub>Blue: data · Purple: Claude calls · Red: what it returns instead of guessing · Green: the only path to an answer.</sub>
 
 1. **Ingest** parses the official text into chunks that follow the law's own structure, so every
-   citation is precise ("Article 5(1)(f)", "Annex III, point 4"). Each chunk's offsets are checked
-   against its source: `source[start:end] == chunk`, or the build fails.
+   citation is precise ("Article 5(1)(f)", "Annex III, point 4"). The build fails if a chunk's text
+   isn't, in order, the text of its Article read straight from the XML, or if the download doesn't
+   match the SHA-256 recorded last time (`--update` accepts a new version on purpose).
 2. **Query rewrite.** People say "employers" and "banned"; the Act says "workplace" and "prohibited".
    Claude Haiku rewrites the question in the Act's vocabulary, and the rewrite is used only to
    search. Without it, "Can employers use emotion recognition on their staff?" ranked Article 5(1)(f)
@@ -63,8 +67,9 @@ flowchart TB
    paraphrases), merged with Reciprocal Rank Fusion. Recitals are capped so the Articles that
    carry obligations aren't crowded out.
 4. **Generation** sends each chunk to Claude as a separate citable document (Anthropic Citations).
-5. **Verification** checks every returned quote against the chunk it cites. A claim whose quotes
-   don't match is removed. If nothing survives, the answer says the text doesn't cover it.
+5. **Verification** checks every returned quote against the chunk it cites, at the character
+   positions the API reports. A claim whose quotes don't match is removed. If nothing survives, the
+   answer says the text doesn't cover it.
 
 ## What it refuses to do
 
@@ -75,7 +80,7 @@ flowchart TB
 | Nothing in the answer can be verified | `status: "not_grounded"` with a fixed message, no guessing |
 | The question needs another law (GDPR rules, US law) | `status: "not_in_act"` |
 | The reply hit `max_tokens` | HTTP 502 `truncated`, never a half answer |
-| The model declines | Server-side fallback to another model; if all decline, HTTP 502 `refused` |
+| The model declines | Opus: server-side fallback to another model; if all decline (or Haiku declines), HTTP 502 `refused` |
 | The user insists on a wrong Article | The answer changes only if they point to text (measured below) |
 
 ## Evals
@@ -86,7 +91,7 @@ Measured on 30 golden cases with each model ([Opus report](evals/results/answers
 | Metric | Claude Opus 5.5 | Claude Haiku 5.5 |
 |---|---|---|
 | Citations the model produced that matched the source text (every round) | **100%** (281/281) | **100%** (197/197) |
-| Answers citing the Article the question is about | **100%** (20/20) | **100%** (20/20) |
+| Answers citing an expected Article | **100%** (20/20) | **100%** (20/20) |
 | Out-of-scope questions refused (GDPR rules, US law, tax) | **100%** (5/5) | 80% (4/5) |
 | Held the correct Article through two rounds of user pushback | 80% (4/5) | 60% (3/5) |
 
@@ -104,10 +109,39 @@ of every final reply is in the report so the grading can be checked by eye. Some
 marked as caved open by rejecting the wrong Article without restating the right one (B2 for Opus;
 B3 and B4 for Haiku). Grades are published as the judge gave them.
 
+How to read these numbers:
+
+- **Citation validity is expected to be high.** Anthropic Citations takes each quote from the
+  documents it was given, so the checker is defence in depth: it catches a quote that isn't in its
+  chunk or isn't where the API says. It does not check that the sentence a quote supports follows
+  from it; that is the model's judgement (see Limitations). The position check was added in v1.3.0,
+  after these runs; on two live questions afterwards, 17 of 17 positions matched.
+- **The sets are small.** Out-of-scope and pushback have 5 cases each, so 80% vs 60% is one case.
+  For the 2 multi-article questions, citing one of the expected Articles counts. Each model ran once.
+- **Haiku grades pushback, including Haiku's own replies.** The report shows each reply's opening so
+  the grades can be checked.
+
 Golden set: [`evals/golden.jsonl`](evals/golden.jsonl), 30 hand-labelled questions (direct lookups,
 plain-language paraphrases, multi-article questions, out-of-scope questions, and two-round pushback
 cases). Every expected Article was checked against the text. Retrieval evals run on every push in CI;
 answer evals run on demand ([workflow](.github/workflows/evals.yml)).
+
+## Limitations
+
+- Answers are the model's reading of the retrieved text. The checker proves each quote is real and
+  correctly placed, not that the claim next to it is right. It is a research aid, not legal advice.
+- Only the 8 best-matching chunks are sent. A question that needs a part of the Act search doesn't
+  find gets a narrower answer, or `not_grounded`.
+- The conversation is held by the page and sent back with each question (the server keeps no state),
+  so a caller can edit earlier turns. They are bounded (4 turns, 2,000 characters per question,
+  8,000 of each earlier answer) and the model is told to answer only from the retrieved text.
+- The text is the version recorded in `corpus_meta.json`; later amendments and the Commission's
+  guidelines aren't included.
+- The demo's rate limit is in memory, for one process. More replicas would need a shared store.
+
+**Cost per question** (measured, one question with 8 chunks): about 4,200 input and 1,300 output
+tokens, **≈ $0.04 on Opus 5.5** and **≈ $0.001 on Haiku 5.5**, plus about 250 tokens for the Haiku
+query rewrite. At the demo's cap of 100 typed questions an hour, Haiku costs at most about $0.11 an hour.
 
 ## Live demo
 
@@ -117,11 +151,16 @@ The public demo keeps the bill bounded:
 
 - The example questions show **saved answers from Claude Opus 5.5** (labelled with their date). No API call.
 - Questions you type run on **Claude Haiku 5.5**, up to 5 per visitor per hour and 100 per hour in total.
+  What you type is sent to Anthropic to answer it; the site stores nothing and logs a visitor's IP
+  address only when they reach the limit.
 - Paste your own Anthropic key to run **Claude Opus 5.5**. It is used for your requests only, held in
   memory for that request, and never stored or logged.
 - If the owner's monthly spend limit is reached, the demo says it is paused and the examples keep working.
 
-All of this is switched on by `DEMO=1`; a local run is unchanged. The per-visitor limit needs the
+All of this, the own-key header included, is switched on by `DEMO=1`; a local run is unchanged, and
+the API docs pages (`/docs`, `/openapi.json`) are off in the demo. Every reply carries a strict
+Content-Security-Policy, `X-Content-Type-Options` and `Referrer-Policy`, and request bodies over
+256 KB are refused before parsing. The per-visitor limit needs the
 visitor's real address from behind the host's proxy: set `CLIENT_IP_HEADER` to a header the proxy
 sets and overwrites (on Render: `CF-Connecting-IP`), or `PROXY_HOPS` to how many proxies append to
 `X-Forwarded-For` (default 1). When a call to Anthropic fails, the log shows the error type and status,
@@ -144,9 +183,10 @@ uv run uvicorn actrag.api:app --reload
 Run the tests and evals:
 
 ```bash
-uv run pytest                              # 83 tests, no network or API key
+uv run pytest                              # 95 tests, no network or API key
 uv run python evals/run.py --retrieval     # free
-uv run python evals/run.py --answers       # calls Claude
+uv run python evals/run.py --answers       # calls Claude (Opus 5.5)
+MODEL=claude-haiku-5-5 uv run python evals/run.py --answers   # the Haiku report
 ```
 
 Rebuild the corpus from the official source (optional; the parsed corpus is committed):
@@ -184,9 +224,18 @@ curl -s localhost:8000/ask -H 'content-type: application/json' \
 |---|---|
 | `POST /ask` | `{question, history?}`, optional header `X-Anthropic-Key` (history: up to 4 plain-text turns) → `{status, answer, citations[{ref, quote, url}], model, corpus_date, disclaimer}` |
 | `GET /health` | `{status, corpus_date, chunks}` |
-| `GET /config` | `{demo, model, byok}`: whether demo mode is on and which model typed questions use |
+| `GET /config` | `{demo, model, byok, per_hour}`: whether demo mode is on, which model typed questions use, and the per-visitor hourly limit |
 | `GET /examples` | the saved example answers (regenerate with `scripts/save_examples.py`) |
 | `GET /` | the web page |
+
+| Status | Meaning |
+|---|---|
+| 200 | `status` is `answered`, `not_in_act` or `not_grounded` |
+| 401 | `bad_key`: the visitor's own key was rejected, can't run requests, or is out of credit |
+| 413 · 411 · 422 | request too large, missing its length, or invalid (empty or too long question, bad history) |
+| 429 | demo only: `rate_limited` (this visitor's hourly limit) or `busy` (the limit across all visitors) |
+| 502 | `truncated` or `refused` |
+| 503 | `no_api_key`, `upstream`, or `paused` (demo: the owner's monthly spend limit is reached) |
 
 ## Design decisions
 

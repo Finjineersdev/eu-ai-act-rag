@@ -32,7 +32,10 @@ class Limiter:
         self.lock = threading.Lock()  # requests run on a thread pool
 
     def check(self, ip: str) -> str | None:
-        """None if allowed (and recorded); else "rate_limited" (this visitor) or "busy" (everyone)."""
+        """None if allowed (and recorded).
+
+        Otherwise "rate_limited" (this visitor's limit) or "busy" (the limit across everyone).
+        """
         with self.lock:
             now = self.clock()
             cutoff = now - self.window
@@ -63,8 +66,8 @@ def client_ip(request) -> str:
 
     Proxies append to X-Forwarded-For, so the trustworthy entry is PROXY_HOPS from the right;
     anything further left was sent by the visitor and can be faked. Behind a proxy that sets its own
-    client-address header and overwrites any copy the visitor sent (Cloudflare's CF-Connecting-IP, on
-    Render), name it in CLIENT_IP_HEADER instead.
+    client-address header and overwrites any copy the visitor sent (Cloudflare's
+    CF-Connecting-IP, on Render), name it in CLIENT_IP_HEADER instead.
     """
     trusted = os.environ.get("CLIENT_IP_HEADER", "").strip().lower()
     if trusted and request.headers.get(trusted, "").strip():
@@ -90,6 +93,6 @@ def is_spend_cap(err: anthropic.APIStatusError) -> bool:
     error = (err.body or {}).get("error", {}) if isinstance(err.body, dict) else {}
     if (error.get("details") or {}).get("error_code") == "enforced_spend_limit_reached":
         return True
-    # the Console limit you set yourself comes back as a 400 with this message (account or workspace)
+    # the Console limit you set yourself is a 400 with this message (account or workspace)
     message = error.get("message") or str(err)
     return err.status_code == 400 and message.startswith("You have reached your specified")

@@ -1,7 +1,10 @@
 """Keep only what the source text supports.
 
 Rules (docs/design.md, "Rules settled after review"):
-- a citation is valid only if its quote appears in the cited chunk (whitespace-normalised);
+- a citation is valid only if its quote appears in the cited chunk (whitespace-normalised), at the
+  character positions the API reports;
+- this proves the quote is real and correctly placed, not that the sentence it supports follows
+  from it: that is the model's judgement (see README, Limitations);
 - a text block whose citations all fail is removed;
 - uncited text is kept and shown without a citation number (it is never presented as cited);
 - no valid citation left -> status "not_grounded" with a fixed message.
@@ -48,6 +51,9 @@ def _valid(c, docs: list[Chunk]) -> bool:
         and 0 <= i < len(docs)
         and bool(normalise(c.cited_text or ""))
         and normalise(c.cited_text) in docs[i].text
+        # and it sits where the API says it does in the document we sent (the chunk's own text)
+        and normalise(docs[i].text[c.start_char_index : c.end_char_index])
+        == normalise(c.cited_text)
     )
 
 

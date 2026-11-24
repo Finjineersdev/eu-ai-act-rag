@@ -3,12 +3,15 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6.8.0
       - run: uv sync --frozen
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run pytest -q
@@ -18,7 +21,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       - run: docker build -t actrag .
       - name: Embedder loads offline and search works
         run: >
@@ -32,7 +35,7 @@ jobs:
           docker logs actrag; exit 1
 
   publish:
-    # release tags only: the image the live demo (Hugging Face Space) runs
+    # release tags only: the image the live demo (on Render) runs
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [test, docker]
     runs-on: ubuntu-latest
@@ -40,7 +43,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       - name: Build and push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

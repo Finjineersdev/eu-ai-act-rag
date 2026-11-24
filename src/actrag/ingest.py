@@ -1,6 +1,7 @@
 """Parse the AI Act XHTML (EU Publications Office, Cellar) into structure-aware chunks.
 
 Run `python -m actrag.ingest` to fetch the official text and write src/actrag/data/corpus.jsonl.
+If the text no longer matches the recorded SHA-256, it stops; `--update` accepts the new version.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from pathlib import Path
 
 import defusedxml.ElementTree as DET
 
-SOURCE_URL = "http://publications.europa.eu/resource/celex/32024R1689"
+SOURCE_URL = "https://publications.europa.eu/resource/celex/32024R1689"  # redirects to http
 DATA = Path(__file__).resolve().parent / "data"
 X = "{http://www.w3.org/1999/xhtml}"
 UNIT_ID = re.compile(r"(art_(\d+)|anx_([IVXL]+)|rct_(\d+))")
@@ -167,10 +168,25 @@ def parse_units(xhtml: bytes) -> dict[str, str]:
     return {u.get("id"): _chunk_unit(u)[0] for u in _units(xhtml)}
 
 
+def _check_against_source(unit: ET.Element, chunks: list[Chunk]) -> None:
+    """Each chunk's text must appear, in order, in the unit's text read straight from the XML.
+
+    Compared without whitespace, because the XML has none between some paragraphs. This catches
+    text the chunker dropped, duplicated, reordered or altered.
+    """
+    source, cursor = "".join(_text(unit).split()), 0
+    for c in chunks:
+        at = source.find("".join(c.text.split()), cursor)
+        if at < 0:
+            raise ValueError(f"chunk {c.id} is not in the source text of {c.anchor}")
+        cursor = at + 1
+
+
 def parse(xhtml: bytes) -> list[Chunk]:
     out: list[Chunk] = []
     for unit in _units(xhtml):
         unit_text, chunks = _chunk_unit(unit)
+        _check_against_source(unit, chunks)
         for c in chunks:
             if unit_text[c.start : c.end] != c.text or c.text != normalise(c.text):
                 raise ValueError(f"offset mismatch in {c.id}")
@@ -183,7 +199,20 @@ def load_corpus(path: Path = DATA / "corpus.jsonl") -> list[Chunk]:
         return [Chunk(**json.loads(line)) for line in f]
 
 
+def check_source(content: bytes, recorded: dict | None, update: bool) -> None:
+    """The final file is served over plain http, so the recorded hash is the integrity check."""
+    if recorded is None or update:
+        return
+    if hashlib.sha256(content).hexdigest() != recorded["sha256"]:
+        raise SystemExit(
+            f"The source differs from the version retrieved on {recorded['retrieved_at']}. "
+            "Check it, then re-run with --update to accept it."
+        )
+
+
 def main() -> None:
+    import sys
+
     import httpx
 
     r = httpx.get(
@@ -193,6 +222,9 @@ def main() -> None:
         timeout=60,
     )
     r.raise_for_status()
+    meta_path = DATA / "corpus_meta.json"
+    recorded = json.loads(meta_path.read_text()) if meta_path.exists() else None
+    check_source(r.content, recorded, update="--update" in sys.argv)
     chunks = parse(r.content)
     gen = re.search(rb"generated_on:(\d{8})", r.content)
     DATA.mkdir(exist_ok=True)

@@ -62,3 +62,35 @@ def test_annex_points_with_span_text_keep_their_text():
     (chunk,) = parse(xhtml)
     assert chunk.ref == "Annex I, point 1"
     assert chunk.text == "1. Directive 2006/42/EC on machinery (OJ L 157);"
+
+
+def test_check_catches_text_not_in_source(monkeypatch):
+    """The build fails if a chunk's text isn't, in order, the unit's text in the source XML."""
+    import dataclasses
+
+    import pytest
+
+    from actrag import ingest
+
+    real = ingest._chunk_unit
+
+    def garbled(unit):
+        joined, chunks = real(unit)
+        bad = [dataclasses.replace(chunks[0], text=chunks[0].text + " not in the Act")] + chunks[1:]
+        return joined, bad
+
+    monkeypatch.setattr(ingest, "_chunk_unit", garbled)
+    with pytest.raises(ValueError, match="not in the source"):
+        parse(FIXTURE)
+
+
+def test_changed_source_needs_update_flag():
+    import pytest
+
+    from actrag.ingest import check_source
+
+    recorded = {"sha256": "a" * 64, "retrieved_at": "2026-11-20"}
+    check_source(b"x", None, update=False)  # first ingest: nothing to compare
+    with pytest.raises(SystemExit, match="--update"):
+        check_source(b"different", recorded, update=False)
+    check_source(b"different", recorded, update=True)

@@ -26,7 +26,8 @@ def main() -> None:
     retriever, client, out = Retriever.load(), anthropic.Anthropic(), []
     for q in QUESTIONS:
         r = answer(q, [], retriever, client, model=FULL_MODEL)
-        assert r.status == "answered" and r.citations, (q, r.status)
+        if r.status != "answered" or not r.citations:  # never save an unverified answer
+            raise SystemExit(f"{q!r}: {r.status}, {len(r.citations)} citations; not saved")
         out.append(
             {
                 "question": q,

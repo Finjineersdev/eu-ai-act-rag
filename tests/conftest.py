@@ -14,7 +14,7 @@ def fake_embed(text: str) -> np.ndarray:
     """Hashed bag-of-words vector: deterministic, no model download."""
     v = np.zeros(256, dtype=np.float32)
     for w in re.findall(r"\w+", text.lower()):
-        v[int(hashlib.md5(w.encode()).hexdigest(), 16) % 256] += 1
+        v[int(hashlib.md5(w.encode(), usedforsecurity=False).hexdigest(), 16) % 256] += 1
     n = np.linalg.norm(v)
     return v / n if n else v
 

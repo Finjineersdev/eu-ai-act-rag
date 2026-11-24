@@ -1,8 +1,11 @@
+import anthropic
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from actrag import api
 from actrag.answer import RefusedError, TruncatedError
+from actrag.demo import DEMO_MODEL, FULL_MODEL
 from actrag.verify import Citation, Result
 
 
@@ -96,10 +99,41 @@ def test_missing_key_503(monkeypatch, retriever):
 
 
 def test_long_assistant_history_truncated_not_rejected(client):
-    h = [{"role": "user", "content": "a"}, {"role": "assistant", "content": "x" * 20000}]
+    h = [{"role": "user", "content": "a"}, {"role": "assistant", "content": "x" * 12000}]
     r = client.post("/ask", json={"question": "q", "history": h})
     assert r.status_code == 200
     assert len(client.calls["history"][1]["content"]) == 8000
+
+
+def test_oversized_history_turn_rejected(client):
+    long_user = [{"role": "user", "content": "x" * 2001}, {"role": "assistant", "content": "b"}]
+    long_answer = [{"role": "user", "content": "a"}, {"role": "assistant", "content": "x" * 20001}]
+    for h in (long_user, long_answer):
+        assert client.post("/ask", json={"question": "q", "history": h}).status_code == 422
+
+
+def test_huge_body_rejected_before_parsing(client):
+    r = client.post(
+        "/ask",
+        content=b'{"question": "' + b"x" * 300_000 + b'"}',
+        headers={"content-type": "application/json"},
+    )
+    assert r.status_code == 413
+
+
+def test_security_headers_on_page(client):
+    import base64
+    import hashlib
+    import re
+
+    r = client.get("/")
+    csp = r.headers["content-security-policy"]
+    assert "frame-ancestors 'none'" in csp and "default-src 'self'" in csp
+    script = re.search(r"<script>(.*?)</script>", r.text, re.DOTALL).group(1)
+    digest = base64.b64encode(hashlib.sha256(script.encode()).digest()).decode()
+    assert f"'sha256-{digest}'" in csp  # the page's own inline script, and nothing else
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["referrer-policy"] == "no-referrer"
 
 
 def test_history_must_alternate_starting_with_user(client):
@@ -108,11 +142,6 @@ def test_history_must_alternate_starting_with_user(client):
 
 
 # --- demo mode -------------------------------------------------------------------------
-
-import anthropic
-import httpx
-
-from actrag.demo import DEMO_MODEL, FULL_MODEL
 
 KEY = "sk-ant-visitor-secret-123"
 
@@ -139,9 +168,16 @@ def demo(monkeypatch, retriever):
             raise status_error(anthropic.AuthenticationError, 401, "invalid x-api-key")
         return Result("answered", "Yes. [1]", [Citation("Article 5(1)", "q", "https://x#art_5")])
 
+    class VisitorClient:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
     def factory(api_key):
         seen["clients"].append(api_key)
-        return ("visitor-client", api_key)
+        seen["visitor"] = VisitorClient()
+        return seen["visitor"]
 
     monkeypatch.setattr(api, "answer", fake_answer)
     app = api.create_app(retriever=retriever, llm="owner-client", client_factory=factory)
@@ -182,7 +218,8 @@ def test_spend_cap_paused(demo):
 
 
 def test_config_endpoint(demo):
-    assert demo.get("/config").json() == {"demo": True, "model": DEMO_MODEL, "byok": True}
+    c = demo.get("/config").json()
+    assert (c["demo"], c["model"], c["byok"]) == (True, DEMO_MODEL, True)
 
 
 def test_demo_off_unchanged(client):
@@ -234,3 +271,38 @@ def test_upstream_error_logged_without_key(demo, caplog):
     demo.post("/ask", json={"question": "badkey"})
     assert "AuthenticationError 401" in caplog.text
     assert KEY not in caplog.text
+
+
+def test_visitor_client_closed_after_request(demo):
+    demo.post("/ask", json={"question": "q"}, headers={"X-Anthropic-Key": KEY})
+    assert demo.seen["visitor"].closed
+
+
+def test_own_key_ignored_without_demo(monkeypatch, retriever):
+    monkeypatch.delenv("DEMO", raising=False)
+    used = {}
+
+    def fake_answer(question, history, retriever, client, model=None):
+        used["client"], used["model"] = client, model
+        return Result("answered", "Yes. [1]", [Citation("Article 5(1)", "q", "https://x#art_5")])
+
+    def factory(api_key):
+        raise AssertionError("a visitor key must not be used outside demo mode")
+
+    monkeypatch.setattr(api, "answer", fake_answer)
+    with TestClient(api.create_app(retriever, "owner", client_factory=factory)) as c:
+        r = c.post("/ask", json={"question": "q"}, headers={"X-Anthropic-Key": KEY})
+    assert r.status_code == 200 and used == {"client": "owner", "model": api.answer_mod.MODEL}
+
+
+def test_config_reports_limit(demo):
+    assert demo.get("/config").json()["per_hour"] == 5
+
+
+def test_api_docs_hidden_in_demo(demo):
+    assert demo.get("/docs").status_code == 404
+    assert demo.get("/openapi.json").status_code == 404
+
+
+def test_examples_served(demo):
+    assert isinstance(demo.get("/examples").json(), list)

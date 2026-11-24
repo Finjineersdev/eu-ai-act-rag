@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import anthropic
 from fastapi import FastAPI, Request
@@ -27,8 +28,13 @@ from actrag.demo import (
     visitor_key,
 )
 from actrag.ingest import DATA
+from actrag.web import harden
+
+if TYPE_CHECKING:
+    from actrag.retrieve import Retriever
 
 log = logging.getLogger("actrag")
+PER_IP_PER_HOUR = 5
 DISCLAIMER = "Research aid based on the text of Regulation (EU) 2024/1689. Not legal advice."
 STATIC = Path(__file__).parent / "static"
 META = json.loads((DATA / "corpus_meta.json").read_text())
@@ -36,22 +42,33 @@ gen = META.get("generated_on") or ""
 CORPUS_DATE = f"{gen[:4]}-{gen[4:6]}-{gen[6:]}" if len(gen) == 8 else META["retrieved_at"]
 
 
-MAX_TURN_CHARS = 8000
+MAX_QUESTION_CHARS = 2000
+MAX_TURN_CHARS = 8000  # what the model sees of an earlier answer
+MAX_ANSWER_CHARS = 20000  # what we accept back from the page; anything longer isn't ours
 
 
 class Turn(BaseModel):
+    """An earlier turn, sent back by the page. The server keeps no state, so the client holds the
+    history; it is bounded here and the model is told to answer only from the retrieved text."""
+
     role: Literal["user", "assistant"]
-    content: str
+    content: Annotated[str, StringConstraints(max_length=MAX_ANSWER_CHARS)]
 
     @field_validator("content")
     @classmethod
     def clip(cls, v: str) -> str:  # long earlier answers are clipped, not rejected
         return v[:MAX_TURN_CHARS]
 
+    @model_validator(mode="after")
+    def user_turn_is_a_question(self):
+        if self.role == "user" and len(self.content) > MAX_QUESTION_CHARS:
+            raise ValueError(f"a question is at most {MAX_QUESTION_CHARS} characters")
+        return self
+
 
 class Ask(BaseModel):
     question: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_QUESTION_CHARS)
     ]
     history: list[Turn] = Field(default_factory=list, max_length=4)
 
@@ -62,11 +79,16 @@ class Ask(BaseModel):
         return self
 
 
-def who(key: str | None) -> str:
+def key_owner(key: str | None) -> str:
+    """Whose key a failed call used, for the log line (never the key itself)."""
     return "visitor" if key else "owner"
 
 
-def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> FastAPI:
+def create_app(
+    retriever: Retriever | None = None,
+    llm: anthropic.Anthropic | None = None,
+    client_factory: Callable[..., anthropic.Anthropic] = anthropic.Anthropic,
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if retriever is None:
@@ -82,15 +104,19 @@ def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> 
             app.state.llm = anthropic.Anthropic(max_retries=1 if demo_on() else 2)
         else:
             app.state.llm = None  # /health and the UI still work; /ask explains what's missing
-        app.state.limiter = Limiter()
+        app.state.limiter = Limiter(per_ip=PER_IP_PER_HOUR)
         app.state.key_limiter = Limiter(per_ip=30, total=10**6)
         yield
 
-    app = FastAPI(title="EU AI Act RAG", lifespan=lifespan)
+    demo = demo_on()
+    hidden = {"docs_url": None, "redoc_url": None, "openapi_url": None} if demo else {}
+    app = FastAPI(title="EU AI Act RAG", lifespan=lifespan, **hidden)
+    harden(app, STATIC / "index.html")
 
     @app.post("/ask")
     def ask(body: Ask, request: Request):
-        key = visitor_key(request)  # a visitor's own key: never logged, stored or echoed
+        # a visitor's own key (demo only): never logged, stored or echoed
+        key = visitor_key(request) if demo_on() else None
         if key:
             # their key, their cost; a looser limit still stops junk keys from burning our CPU
             if request.app.state.key_limiter.check(client_ip(request)):
@@ -110,34 +136,42 @@ def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> 
         history = [t.model_dump() for t in body.history]
         try:
             r = answer(body.question, history, request.app.state.retriever, llm, model=model)
+            return {
+                "status": r.status,
+                "answer": r.answer,
+                "citations": [asdict(c) for c in r.citations],
+                "model": model,
+                "corpus_date": CORPUS_DATE,
+                "disclaimer": DISCLAIMER,
+            }
         except TruncatedError:
             return JSONResponse({"error": "truncated"}, status_code=502)
         except RefusedError:
             return JSONResponse({"error": "refused"}, status_code=502)
         except anthropic.APIStatusError as e:
             # type and status only, so the owner can see why in the host's logs; never the key
-            log.warning("anthropic %s %s (%s key)", type(e).__name__, e.status_code, who(key))
+            log.warning("anthropic %s %s (%s key)", type(e).__name__, e.status_code, key_owner(key))
             # their key is wrong, can't run this, or is out of credit: retrying won't help
             if key and (e.status_code in (401, 402, 403) or is_spend_cap(e)):
                 return JSONResponse({"error": "bad_key"}, status_code=401)
             paused = not key and is_spend_cap(e)
             return JSONResponse({"error": "paused" if paused else "upstream"}, status_code=503)
         except anthropic.APIError as e:
-            log.warning("anthropic %s (%s key)", type(e).__name__, who(key))
+            log.warning("anthropic %s (%s key)", type(e).__name__, key_owner(key))
             return JSONResponse({"error": "upstream"}, status_code=503)
-        return {
-            "status": r.status,
-            "answer": r.answer,
-            "citations": [asdict(c) for c in r.citations],
-            "model": model,
-            "corpus_date": CORPUS_DATE,
-            "disclaimer": DISCLAIMER,
-        }
+        finally:
+            if key:
+                llm.close()  # a client per visitor key; don't leave its connections open
 
     @app.get("/config")
     def config():
         demo = demo_on()
-        return {"demo": demo, "model": DEMO_MODEL if demo else answer_mod.MODEL, "byok": demo}
+        return {
+            "demo": demo,
+            "model": DEMO_MODEL if demo else answer_mod.MODEL,
+            "byok": demo,
+            "per_hour": PER_IP_PER_HOUR,
+        }
 
     @app.get("/examples")
     def examples():

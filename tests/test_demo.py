@@ -80,7 +80,8 @@ def test_is_spend_cap():
     assert is_spend_cap(
         err(
             400,
-            "You have reached your specified API usage limits. You will regain access on 2026-12-01",
+            "You have reached your specified API usage limits. "
+            "You will regain access on 2026-12-01",
         )
     )
     assert is_spend_cap(err(400, "You have reached your specified workspace API usage limits."))
