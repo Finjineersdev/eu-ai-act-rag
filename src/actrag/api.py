@@ -62,6 +62,10 @@ class Ask(BaseModel):
         return self
 
 
+def who(key: str | None) -> str:
+    return "visitor" if key else "owner"
+
+
 def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -111,12 +115,15 @@ def create_app(retriever=None, llm=None, client_factory=anthropic.Anthropic) -> 
         except RefusedError:
             return JSONResponse({"error": "refused"}, status_code=502)
         except anthropic.APIStatusError as e:
+            # type and status only, so the owner can see why in the host's logs; never the key
+            log.warning("anthropic %s %s (%s key)", type(e).__name__, e.status_code, who(key))
             # their key is wrong, can't run this, or is out of credit: retrying won't help
             if key and (e.status_code in (401, 402, 403) or is_spend_cap(e)):
                 return JSONResponse({"error": "bad_key"}, status_code=401)
             paused = not key and is_spend_cap(e)
             return JSONResponse({"error": "paused" if paused else "upstream"}, status_code=503)
-        except anthropic.APIError:
+        except anthropic.APIError as e:
+            log.warning("anthropic %s (%s key)", type(e).__name__, who(key))
             return JSONResponse({"error": "upstream"}, status_code=503)
         return {
             "status": r.status,

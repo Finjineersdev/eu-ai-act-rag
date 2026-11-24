@@ -224,3 +224,13 @@ def test_key_never_logged(demo, caplog):
 def test_visitor_key_out_of_credit_is_bad_key(demo):
     r = demo.post("/ask", json={"question": "spend"}, headers={"X-Anthropic-Key": KEY})
     assert r.status_code == 401 and r.json() == {"error": "bad_key"}
+
+
+def test_upstream_error_logged_without_key(demo, caplog):
+    import logging
+
+    caplog.set_level(logging.WARNING)
+    demo.post("/ask", json={"question": "badkey"}, headers={"X-Anthropic-Key": KEY})
+    demo.post("/ask", json={"question": "badkey"})
+    assert "AuthenticationError 401" in caplog.text
+    assert KEY not in caplog.text
