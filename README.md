@@ -111,7 +111,7 @@ answer evals run on demand ([workflow](.github/workflows/evals.yml)).
 
 ## Live demo
 
-<!-- LIVE_LINK -->
+**Try it: https://eu-ai-act-rag-v1-2-1.onrender.com** (free hosting: after a quiet spell the first load takes about a minute to wake up).
 
 The public demo keeps the bill bounded:
 
